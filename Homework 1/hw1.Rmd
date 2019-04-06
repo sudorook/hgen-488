@@ -1,0 +1,262 @@
+---
+title: Homework 1
+author: Ansel George
+output: pdf_document
+---
+
+```{r}
+set.seed(10)
+```
+
+
+# Problem 1
+
+*Consider the searching problem:*
+
+**Input:** *A sequence of $n$ numbers $A = (a_1, a_2 , \dots , a_n )$ and a
+value $v$.*
+
+**Output:** *An index $i$ such that $v = A[i]$ or the special value `NULL` if
+$v$ does not appear in $A$.*
+
+## a)
+
+*Implement the linear search algorithm, which scans through the sequence,
+looking for $v$. Using a loop invariant, prove that your algorithm is correct.*
+
+```{r}
+linearSearch <- function(numbers, val) {
+  for (i in 1:length(numbers)) {
+    if (numbers[i] == val) {
+      return(i)
+    }
+  }
+  return(NULL)
+}
+```
+
+
+## b)
+
+*For linear search, how many elements of the input sequence need to be checked
+on the average, assuming that the element being searched for is equally likely
+to be any element in the array? How about in the worst case? What are the
+average-case and worst-case running times of linear search in
+$\Theta$-notation? Justify your answers.*
+
+**Average case:** 
+
+The $i$th element will take $i$ steps to find in the array. If the desired
+element is equally likely to be found in any position, then the average number
+of steps needed to find a given element is:
+
+\begin{align}
+\textrm{avg case \# elements} &= \frac{1}{N} \sum^N_{i=1} i \\
+  &= \frac{1}{N} \frac{N(N+1)}{2} \\
+  &= \frac{N+1}{2} \\
+  &\approx \frac{N}{2} \textrm{ for large N.}
+\end{align}
+
+$N$ is the number of elements in the list, and the elements themselves are
+assumed to be unique. (The runtimes will be less if there are only, for
+example, 2 values in some proportion to one another.)
+
+Let $C_1$ represent the computation cost of checking an element. The average-case
+runtime is as follows:
+
+\begin{align}
+T_{avg}(N) &= \frac{1}{N} \sum^N_{i=1} C_1 i \\
+  &= \frac{C_1}{N} \frac{N(N+1)}{2} \\
+  &= \frac{C_1 (N+1)}{2} \\
+\implies T_{avg}(N) &= \Theta(N)
+\end{align}
+
+
+**Worst case:** 
+
+The worst case scenario is when the desired element is the last one searched,
+which will take $N$ elements to find.
+
+\begin{align}
+  \textrm{worst case \# elements} &= N
+\end{align}
+
+In $\Theta$ notation, this translates to $T_{worst}(n) = \Theta(n)$, the same as the
+average case.
+
+
+## c)
+
+If the sequence A is sorted, we can check the midpoint of the sequence against
+$v$ and eliminate half of the sequence from further consideration. Implement the
+binary search algorithm either iteratively or recursively.
+
+```{r}
+binarySearch <- function(sortedNumbers, val, idx=1) {
+  if (length(sortedNumbers) == 1) {
+    if (val == sortedNumbers[1]) {
+      return(idx)
+    } else {
+      return(NULL)
+    }
+  } else {
+    midpoint <- ceiling(length(sortedNumbers)/2)
+    curval <- sortedNumbers[midpoint]
+
+    # Assume data is sorted in increasing order (fails if the reverse is true)
+    if (curval == val) {
+      return(midpoint + idx - 1)
+    } else if (curval > val) {
+      binarySearch(sortedNumbers[1:(midpoint-1)], val, idx)
+    } else {
+      binarySearch(sortedNumbers[(midpoint+1):length(sortedNumbers)], val, idx+midpoint)
+    }
+  }
+}
+```
+
+Testing out the implementation:
+
+```{r}
+x <- sort(runif(100))
+y <- rep(0, length(x))
+for (i in 1:length(x)) {
+  y[i] <- binarySearch(x, x[i])
+}
+
+sum(y != seq(1,length(y)))
+```
+
+
+## d)
+
+What is the worst-case running time of binary search in $\Theta$-notation?
+
+Worst-case runtime for binary search is $\Theta(log_2(n))$.
+
+
+# Problem 2
+
+Using the master method:
+
+## a)
+
+Use the master method to give tight asymptotic bounds for the following
+recurrences:
+
+### 1. $T(n) = 2T(n/4) + 1$
+
+$a=2$, $b=4$ $\implies$ $log_b(a)=.5$.
+
+$f(n) = 1 = n^0$, and $0 < log_b(a) = .5$, so case 1 applies.
+
+$\implies T(n) = \Theta(n^{.5})$
+
+
+### 2. $T(n) = 2T(n/4) + \sqrt{n}$
+
+$a=2$, $b=4$ $\implies$ $log_b(a)=.5$.
+
+$f(n) = n^{.5}$, and $.5 = log_b(a) = .5$. Case 2 applies.
+
+$\implies T(n) = \Theta(n^{.5} log(n))$
+
+
+### 3. $T(n) = 2T(n/4) + n$
+
+$a=2$, $b=4$ $\implies$ $log_b(a)=.5$.
+
+$f(n) = n^1$, and $1 > log_b(a) = .5$, meaning that $f(n) = \Omega(n^{.5})$.
+Also, $a f(n/b) = 2 f(n/4) = n/2 < c f(n)$ for some $c$ where $0 < c < 1$, so
+case 3 applies.
+
+$\implies T(n) = \Theta(n)$
+
+
+### 4. $T(n) = 2T(n/4) + n^2$
+
+$a=2$, $b=4$ $\implies$ $log_b(a)=.5$.
+
+$f(n) = n^2$, and $2 > log_b(a) = .5$, meaning that $f(n) = \Omega(n^{.5})$.
+Also, $a f(n/b) = 2 f(n/4) = n^2/8 < c f(n) = c n^2$ for some $c$ where $0 < c
+< 1$, so case 3 applies.
+
+$\implies T(n) = \Theta(n^2)$
+
+
+## b)
+
+Use the master method to show that the worst-case running time you gave in 1.d)
+for the binary-search recurrence is correct.
+
+$T(n) = T(n/2) + f(n)$
+
+$f(n) = c$, a constant.
+
+$a=1$, $b=2$ $\implies$ $log_b(a)=0$.
+
+$\implies T(n) = n^0 + O(1)$
+
+Both $T(n/2)$ and $f(n)$ are both $O(n^0)$, which falls into case 2 in the
+Master Theorem.
+
+$\implies T(n) = O(n^0 log(n)) = O(log(n))$
+
+
+# Problem 3
+
+Based on the pseudo code taught in class, implement the merge-sort algorithm
+for the sorting problem:
+
+**Input:** A sequence of $n$ numbers $A = (a_1, a_2, \dots, a_n)$.
+
+**Output:** A reordered sequence $(a_1^\prime, a_2^\prime, \dots, a_n^\prime)$
+such that $a_1^\prime \leq a_2^\prime \leq \dots \leq a_n^\prime$
+
+
+```{r}
+mergeNumbers <- function(seq1, seq2) {
+  newseq <- rep(0, length(seq1)+length(seq2))
+  counter <- 1
+
+  while( (length(seq1)!=0) && (length(seq2)!=0) ) {
+    if (seq1[1] < seq2[1]) {
+      newseq[counter] <- seq1[1]
+      seq1 <- seq1[-1]
+    } else {
+      newseq[counter] <- seq2[1]
+      seq2 <- seq2[-1]
+    }
+    counter <- counter + 1
+  }
+  if (length(seq1)!=0) {
+    newseq[counter:length(newseq)] <- seq1
+  }
+  if (length(seq2)!=0) {
+    newseq[counter:length(newseq)] <- seq2
+  }
+  return(newseq)
+}
+
+mergeSort <- function(numbers) {
+  l = length(numbers)
+  if (l == 1) {
+    return(numbers)
+  } else {
+    midpoint <- ceiling(l/2)
+    firsthalf <- mergeSort(numbers[1:midpoint])
+    secondhalf <- mergeSort(numbers[(midpoint+1):l])
+    sorted <- mergeNumbers(firsthalf, secondhalf)
+    return(sorted)
+  }
+}
+```
+
+Testing out the implementation:
+
+```{r}
+x <- runif(100)
+y <- mergeSort(x)
+
+sum(y != sort(x))
+```
