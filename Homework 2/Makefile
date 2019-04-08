@@ -1,15 +1,13 @@
 TARGET := align_blosum62
 CC ?= gcc
 
-# CFLAGS = -Wall -Wextra -g $(shell pkg-config --cflags gsl) -I/usr/include/gsl
-# LDFLAGS = $(shell pkg-config --libs gsl)
-CFLAGS = -Wall -Wextra -g
+CFLAGS = -Wall -Wextra -g  -std=c99
 LDFLAGS = -lm
 
-SRC_PATH = src
+SRCPATH = src
 
-HEADERS = $(shell find $(SRC_PATH) -name '*.h' | sort -k 1nr | cut -f2-)
-SOURCES = $(shell find $(SRC_PATH) -name '*.c' | sort -k 1nr | cut -f2-)
+HEADERS = $(shell find $(SRCPATH) -name '*.h' | sort -k 1nr | cut -f2-)
+SOURCES = $(shell find $(SRCPATH) -name '*.c' | sort -k 1nr | cut -f2-)
 OBJECTS = $(SOURCES:%.c=%.o)
 
 .PHONY: all
