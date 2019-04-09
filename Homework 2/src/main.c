@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "globals.h"
+#include "utils.h"
 
 /* Sequence */
 
@@ -68,36 +69,6 @@ print_enum_seq(const enum aa* seq, int len)
     printf("%.2d ", seq[i]);
   }
   printf("\n");
-}
-
-int
-max(int a, int b, int c)
-{
-  if (a > b) {
-    if (a > c) {
-      return (a);
-    } else {
-      return (c);
-    }
-  } else {
-    if (b > c) {
-      return (b);
-    } else {
-      return (c);
-    }
-  }
-}
-
-void
-set_value(int* matrix, int row, int col, int size, int val)
-{
-  matrix[row * size + col] = val;
-}
-
-int
-get_value(int* matrix, int row, int col, int size)
-{
-  return (matrix[row * size + col]);
 }
 
 enum aa*
@@ -190,30 +161,6 @@ traceback(int* scores, const struct sequence seq1, const struct sequence seq2)
   trace.sequence2 = new_seq2;
 
   return (trace);
-}
-
-/* Print out the contents of a matrix. */
-void
-print_matrix(int* matrix, int nrow, int ncol)
-{
-  for (int i = 0; i < nrow; i++) {
-    for (int j = 0; j < ncol; j++) {
-      int val = get_value(matrix, i, j, ncol);
-      printf("%3d ", val);
-    }
-    printf("\n");
-  }
-}
-
-/* Zero out the entries of a matrix. */
-void
-zero_matrix(int* matrix, int nrow, int ncol)
-{
-  for (int i = 0; i < nrow; i++) {
-    for (int j = 0; j < ncol; j++) {
-      set_value(matrix, i, j, ncol, 0);
-    }
-  }
 }
 
 struct alignment

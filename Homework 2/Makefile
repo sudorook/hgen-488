@@ -1,8 +1,8 @@
 TARGET := align_blosum62
 CC ?= gcc
 
-CFLAGS = -Wall -Wextra -g  -std=c99
-LDFLAGS = -lm
+CFLAGS = -Wall -Wextra -g -std=c99
+LDFLAGS =
 
 SRCPATH = src
 
@@ -15,10 +15,7 @@ OBJECTS = $(SOURCES:%.c=%.o)
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $^
-
-$(OBJECTS): $(SOURCES) $(HEADERS)
-	$(CC) -c $(CFLAGS) $(LDFLAGS) $< -o $@
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 .PHONY: clean
 
