@@ -252,10 +252,19 @@ global_sequence_alignment(const struct sequence seq1,
       }
     }
   }
-  print_matrix(scores, nrow, ncol);
-  printf("\n");
+  /* print_matrix(scores, nrow, ncol);
+   * printf("\n"); */
 
   return (traceback(scores, seq1, seq2));
+}
+
+void
+print_alignment(struct alignment a)
+{
+  printf("score: %d\n", a.score);
+  printf("seq 1: %s\n", a.sequence1.char_seq);
+  printf("seq 2: %s\n", a.sequence2.char_seq);
+  return;
 }
 
 /*
@@ -276,14 +285,17 @@ main(int argv, char* argc[])
 
   printf("seq 1: %s\n", seq1.char_seq);
   printf("seq 2: %s\n", seq2.char_seq);
-  print_enum_seq(seq1.enum_seq, seq1.length);
-  print_enum_seq(seq2.enum_seq, seq2.length);
+  printf("\n");
 
   struct alignment trace = global_sequence_alignment(seq1, seq2);
+  print_alignment(trace);
 
-  printf("score: %d\n", trace.score);
-  printf("seq 1: %s\n", trace.sequence1.char_seq);
-  printf("seq 2: %s\n", trace.sequence2.char_seq);
+  free(seq1.enum_seq);
+  free(seq2.enum_seq);
+  free(trace.sequence1.char_seq);
+  free(trace.sequence2.char_seq);
+  free(trace.sequence1.enum_seq);
+  free(trace.sequence2.enum_seq);
 
   return (0);
 }
