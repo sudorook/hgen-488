@@ -34,10 +34,10 @@ enum aa
 };
 
 /* Maps enum values (integers) to characters. */
-static char* aa_table[AA_TABLE_SIZE + 1] = { "A", "R", "N", "D", "C", "Q", "E",
-                                             "G", "H", "I", "L", "K", "M", "F",
-                                             "P", "S", "T", "W", "Y", "V", "B",
-                                             "Z", "X", "_", "\0" };
+static const char aa_table[AA_TABLE_SIZE + 1] = {
+  'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I', 'L', 'K', 'M',
+  'F', 'P', 'S', 'T', 'W', 'Y', 'V', 'B', 'Z', 'X', '_', '\0'
+};
 
 struct sequence
 {

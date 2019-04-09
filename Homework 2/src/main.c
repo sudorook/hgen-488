@@ -18,13 +18,13 @@ static char* aa_sequence1 =
   "GTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHE"
   "DPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPRE"
   "PQVYTLPPSRDELTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGN"
-  "VFSCSVMHEALHNHYTQKSLSLSPGK";
+  "VFSCSVMHEALHNHYTQKSLSLSPGK\0";
 static char* aa_sequence2 =
   "AKTTPPSVYPLAPGSAAQTNSMVTLGCLVKGYFPEPVTVTWNSGSLSSGVHTFPAVLQSDLYTLSSSVTVPSSTWP"
   "SQTVTCNVAHPASSTKVDKKIVPRDCGCKPCICTVPEVSSVFIFPPKPKDVLTITLTPKVTCVVVDISKDDPEVQF"
   "SWFVDDVEVHTAQTKPREEQFNSTFRSVSELPIMHQDWLNGKEFKCRVNSAAFPAPIEKTISKTKGRPKAPQVYTI"
   "PPPKEQMAKDKVSLTCMITDFFPEDITVEWQWNGQPAENYKNTQPIMDTDGSYFVYSKLNVQKSNWEAGNTFTCSV"
-  "LHEGLHNHHTEKSLSHSPGK";
+  "LHEGLHNHHTEKSLSHSPGK\0";
 
 /*
  * Functions
@@ -44,7 +44,7 @@ string_to_enum(const char* seq)
   for (int i = 0; i < l; i++) {
     char aa_char = seq[i];
     for (int j = 0; j < AA_TABLE_SIZE - 1; j++) {
-      if (*aa_table[j] == aa_char) {
+      if (aa_table[j] == aa_char) {
         enum_seq[i] = j;
       }
     }
@@ -57,7 +57,7 @@ enum_to_string(enum aa* seq, int l)
 {
   char* char_seq = malloc(sizeof(char) * l);
   for (int i = 0; i < l; i++) {
-    char_seq[i] = *aa_table[seq[i]];
+    char_seq[i] = aa_table[seq[i]];
   }
   return (char_seq);
 }
@@ -237,6 +237,7 @@ main(int argv, char* argc[])
   struct alignment trace = global_sequence_alignment(seq1, seq2);
   print_alignment(trace);
 
+  /* Free memory allocated on the heap. */
   free(seq1.enum_seq);
   free(seq2.enum_seq);
   free(trace.sequence1.char_seq);
