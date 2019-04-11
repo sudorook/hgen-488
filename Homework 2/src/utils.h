@@ -1,8 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-/* #include "globals.h" */
-
+char*
+output_file(char*);
 int
 max(int, int, int);
 int

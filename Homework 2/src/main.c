@@ -5,27 +5,6 @@
 #include "globals.h"
 #include "utils.h"
 
-/* Sequence */
-
-/* static char *aa_sequence1 = "ARNDCQE\0";
- * static char *aa_sequence2 = "ARRDQE\0"; */
-
-/* static char *aa_sequence1 = "ARNDCQEAASDGQ\0";
- * static char *aa_sequence2 = "ARRDQEAWERWD\0";  */
-
-static char* aa_sequence1 =
-  "ASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSL"
-  "GTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHE"
-  "DPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPRE"
-  "PQVYTLPPSRDELTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGN"
-  "VFSCSVMHEALHNHYTQKSLSLSPGK\0";
-static char* aa_sequence2 =
-  "AKTTPPSVYPLAPGSAAQTNSMVTLGCLVKGYFPEPVTVTWNSGSLSSGVHTFPAVLQSDLYTLSSSVTVPSSTWP"
-  "SQTVTCNVAHPASSTKVDKKIVPRDCGCKPCICTVPEVSSVFIFPPKPKDVLTITLTPKVTCVVVDISKDDPEVQF"
-  "SWFVDDVEVHTAQTKPREEQFNSTFRSVSELPIMHQDWLNGKEFKCRVNSAAFPAPIEKTISKTKGRPKAPQVYTI"
-  "PPPKEQMAKDKVSLTCMITDFFPEDITVEWQWNGQPAENYKNTQPIMDTDGSYFVYSKLNVQKSNWEAGNTFTCSV"
-  "LHEGLHNHHTEKSLSHSPGK\0";
-
 /*
  * Functions
  */
@@ -71,6 +50,10 @@ print_enum_seq(const enum aa* seq, int len)
   printf("\n");
 }
 
+/*
+ * Utility function to reverse an array of AAs. This is needed because the
+ * traceback function returns the optimal sequence in reverse order.
+ */
 enum aa*
 reverse_sequence(enum aa* seq, int len)
 {
@@ -81,6 +64,10 @@ reverse_sequence(enum aa* seq, int len)
   return (newseq);
 }
 
+/*
+ * Compute a traceback to return the optimal sequence alignment for a given
+ * scoring matrix. Returns the score and the matches sequences (gaps included).
+ */
 struct alignment
 traceback(int* scores, const struct sequence seq1, const struct sequence seq2)
 {
@@ -163,6 +150,9 @@ traceback(int* scores, const struct sequence seq1, const struct sequence seq2)
   return (trace);
 }
 
+/*
+ * Populate a matrix of best alignments.
+ */
 struct alignment
 global_sequence_alignment(const struct sequence seq1,
                           const struct sequence seq2)
@@ -211,6 +201,17 @@ print_alignment(struct alignment a)
   printf("score: %d\n", a.score);
   printf("seq 1: %s\n", a.sequence1.char_seq);
   printf("seq 2: %s\n", a.sequence2.char_seq);
+  printf("\n");
+  return;
+}
+
+void
+write_alignment(struct alignment a, FILE* f)
+{
+  fprintf(f, "score: %d\n", a.score);
+  fprintf(f, "seq 1: %s\n", a.sequence1.char_seq);
+  fprintf(f, "seq 2: %s\n", a.sequence2.char_seq);
+  fprintf(f, "\n");
   return;
 }
 
@@ -221,29 +222,103 @@ print_alignment(struct alignment a)
 int
 main(int argv, char* argc[])
 {
+  /* if (argv != 3) { */
+  if (argv != 2) {
+    fprintf(stderr,
+            "Specify one input file containing protein sequences to align.\n");
+    return (1);
+  }
+  printf("Loading sequences in the \'%s\' file.\n", argc[argv - 1]);
 
-  const struct sequence seq1 = { .char_seq = aa_sequence1,
-                                 .enum_seq = string_to_enum(aa_sequence1),
-                                 .length = strlen(aa_sequence1) };
+  char* input = argc[1];
+  char* output = output_file(input);
 
-  const struct sequence seq2 = { .char_seq = aa_sequence2,
-                                 .enum_seq = string_to_enum(aa_sequence2),
-                                 .length = strlen(aa_sequence2) };
+  FILE* f = fopen(input, "r");
+  if (f == NULL) {
+    fprintf(stderr, "Error opening file \'%s.\'\n", input);
+    exit(2);
+  }
 
-  printf("seq 1: %s\n", seq1.char_seq);
-  printf("seq 2: %s\n", seq2.char_seq);
+  /* Read the sequences provided in the input file. */
+  int i = 0;
+  int count = 0;
+  char c;
+  char* sequences[MAX_N_SEQUENCES];   // compare at most 1000 sequences.
+  char sequence[MAX_SEQUENCE_LENGTH]; // million sequence limit.
+  do {
+    c = fgetc(f);
+    if (feof(f)) {
+      break;
+    } else if (c == '\n') {
+      /* Start reading a new sequences when a newline is reached. */
+      sequence[i] = '\0';
+      sequences[count] = malloc(strlen(sequence) + 1);
+      strcpy(sequences[count], sequence);
+      count++;
+      i = 0;
+    } else {
+      sequence[i] = c;
+      i++;
+    }
+  } while (1);
+
+  fclose(f);
+
+  /* Print the input sequences. */
+  if (count > 9) {
+    for (int i = 0; i < count; i++) {
+      printf("seq %2d: %s\n", i + 1, sequences[i]);
+    }
+  } else {
+    for (int i = 0; i < count; i++) {
+      printf("seq %d: %s\n", i + 1, sequences[i]);
+    }
+  }
   printf("\n");
 
-  struct alignment trace = global_sequence_alignment(seq1, seq2);
-  print_alignment(trace);
+  /* Dynamically allocate memory for all the sequences and store the input
+   * sequences as sequences tructs (members: length, char*, and enum aa*).
+   */
+  struct sequence* seqs = malloc(sizeof(sequence) * count);
+  for (int i = 0; i < count; i++) {
+    const struct sequence seq = { .char_seq = sequences[i],
+                                  .enum_seq = string_to_enum(sequences[i]),
+                                  .length = strlen(sequences[i]) };
+    seqs[i] = seq;
+  }
 
-  /* Free memory allocated on the heap. */
-  free(seq1.enum_seq);
-  free(seq2.enum_seq);
-  free(trace.sequence1.char_seq);
-  free(trace.sequence2.char_seq);
-  free(trace.sequence1.enum_seq);
-  free(trace.sequence2.enum_seq);
+  /* Run pairwise sequence alignments for all sequences. */
+  f = fopen(output, "w");
+  if (f == NULL) {
+    fprintf(stderr, "Error opening file \'%s.\'\n", output);
+    exit(2);
+  }
+
+  for (int i = 0; i < count; i++) {
+    for (int j = i + 1; j < count; j++) {
+      struct alignment trace = global_sequence_alignment(seqs[i], seqs[j]);
+      print_alignment(trace);
+      write_alignment(trace, f);
+
+      /* Free memory allocated on the heap. */
+      free(trace.sequence1.char_seq);
+      free(trace.sequence2.char_seq);
+      free(trace.sequence1.enum_seq);
+      free(trace.sequence2.enum_seq);
+    }
+  }
+
+  fprintf(f, "hi\n");
+  fclose(f);
+
+  /* Cleanup and free memory. */
+  for (int i = 0; i < count; i++) {
+    free(sequences[i]);
+    free(seqs[i].enum_seq);
+  }
+
+  free(seqs);
+  free(output);
 
   return (0);
 }
