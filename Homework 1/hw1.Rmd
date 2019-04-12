@@ -13,7 +13,7 @@ set.seed(10)
 
 *Consider the searching problem:*
 
-**Input:** *A sequence of $n$ numbers $A = (a_1, a_2 , \dots , a_n )$ and a
+**Input:** *A sequence of $n$ numbers $A = (a_1, a_2 , \dots , a_n)$ and a
 value $v$.*
 
 **Output:** *An index $i$ such that $v = A[i]$ or the special value `NULL` if
@@ -27,13 +27,24 @@ looking for $v$. Using a loop invariant, prove that your algorithm is correct.*
 ```{r}
 linearSearch <- function(numbers, val) {
   for (i in 1:length(numbers)) {
+    # for all j=1...i-1, numbers[j] != val
     if (numbers[i] == val) {
+      # numbers[i] == val
       return(i)
     }
+    # for all j=1...i-1, numbers[j] != val
   }
   return(NULL)
 }
 ```
+
+Given target value $y$ and array $A$, the loop invariant for linear search is
+that none of the elements of the subarray $A[1 \dots i-1]$ is equal to the
+target value. This means that if in the current iteration $i$ $A[i] = y$, then
+$i$ is the position of the occurrence of $y$. If not, then the additional claim
+can be made that $x \neq y \forall x \in A[1 \dots i]$, which will serve as the
+loop invariant in the next iteration until the value is found or $i=n$, where
+$n$ is the length of $A$.
 
 
 ## b)
@@ -58,8 +69,8 @@ of steps needed to find a given element is:
 \end{align}
 
 $N$ is the number of elements in the list, and the elements themselves are
-assumed to be unique. (The runtimes will be less if there are only, for
-example, 2 values in some proportion to one another.)
+assumed to be unique. (The average runtimes will be less if there is redundancy
+in values.)
 
 Let $C_1$ represent the computation cost of checking an element. The average-case
 runtime is as follows:
@@ -67,29 +78,49 @@ runtime is as follows:
 \begin{align}
 T_{avg}(N) &= \frac{1}{N} \sum^N_{i=1} C_1 i \\
   &= \frac{C_1}{N} \frac{N(N+1)}{2} \\
-  &= \frac{C_1 (N+1)}{2} \\
+  &= \frac{C_1 (N+1)}{2}
+\end{align}
+
+Consider constant $D_1$ such that such that $D_1 N \leq \frac{C_1 (N+1)}{2}$.
+With rearrangement, $D_1 \leq \frac{C_1}{2} + \frac{C_1}{2N}$, and defining
+another constant $E_1$ where $E_1 = \frac{2D_1}{C_1}$, the inequality becomes
+$E_1 \leq 1 + \frac{1}{N}$. (Note that $C_1$, the computational cost, is always
+positive, so the inequality direction is not changed by division.) Selecting
+$E_1$ such that $0 < E_1 < 1$ satisfies the inequality for any $N \geq 1$.
+Therefore, $T_{avg}(N) \sim \Omega(N)$.
+
+Similarly, given constant $D_2$ such that $D_2 N \geq \frac{C_1 (N+1)}{2}$, one
+can rearrange the inequality to obtain $\frac{2D_2}{C_1} \geq 1 + \frac{1}{N}$.
+Because $1 + \frac{1}{N}$ decreases with increasing $N$, a choice of constant
+$D_2$ that satisfies the inequality for $N=1$ ($D_2 > C_1$) will satisfy it for
+any larger $N$. Therefore, $T_{avg}(N) \sim O(N)$. Combining this result:
+
+\begin{align}
 \implies T_{avg}(N) &= \Theta(N)
 \end{align}
 
 
 **Worst case:** 
 
-The worst case scenario is when the desired element is the last one searched,
-which will take $N$ elements to find.
+The worst case scenario is when the desired element is the last one searched or
+if the element is not found in the array, which will take $N$ steps given array
+of length N.
 
 \begin{align}
   \textrm{worst case \# elements} &= N
 \end{align}
 
-In $\Theta$ notation, this translates to $T_{worst}(n) = \Theta(n)$, the same as the
-average case.
+One can simply pick a $D_1$ st $0 < D_1 < 1$ and a $D_2$ st $D_2 > 1$ to
+establish that the worst-case runtime is both $\Omega(N)$ and $O(n)$. In
+$\Theta$ notation, this translates to $T_{worst}(n) = \Theta(n)$, the same as
+the average case.
 
 
 ## c)
 
-If the sequence A is sorted, we can check the midpoint of the sequence against
+*If the sequence A is sorted, we can check the midpoint of the sequence against
 $v$ and eliminate half of the sequence from further consideration. Implement the
-binary search algorithm either iteratively or recursively.
+binary search algorithm either iteratively or recursively.*
 
 ```{r}
 binarySearch <- function(sortedNumbers, val, idx=1) {
@@ -124,49 +155,52 @@ for (i in 1:length(x)) {
   y[i] <- binarySearch(x, x[i])
 }
 
+# Check that the implemented binary search finds ith element of a sorted array.
 sum(y != seq(1,length(y)))
 ```
 
 
 ## d)
 
-What is the worst-case running time of binary search in $\Theta$-notation?
+*What is the worst-case running time of binary search in $\Theta$-notation?*
 
-Worst-case runtime for binary search is $\Theta(log_2(n))$.
+Worst-case runtime for binary search is $\Theta(\log_2(n))$, where $n$ is the
+number of elements in the sorted array. This is because the height of the
+binary decision tree for the algorithm is $\log_2(n)$.
 
 
 # Problem 2
 
-Using the master method:
+*Using the master method:*
 
 ## a)
 
-Use the master method to give tight asymptotic bounds for the following
-recurrences:
+*Use the master method to give tight asymptotic bounds for the following
+recurrences:*
 
 ### 1. $T(n) = 2T(n/4) + 1$
 
-$a=2$, $b=4$ $\implies$ $log_b(a)=.5$.
+$a=2$, $b=4$ $\implies$ $\log_b(a)=.5$.
 
-$f(n) = 1 = n^0$, and $0 < log_b(a) = .5$, so case 1 applies.
+$f(n) = 1 = n^0$, and $0 < \log_b(a) = .5$, so case 1 applies.
 
 $\implies T(n) = \Theta(n^{.5})$
 
 
 ### 2. $T(n) = 2T(n/4) + \sqrt{n}$
 
-$a=2$, $b=4$ $\implies$ $log_b(a)=.5$.
+$a=2$, $b=4$ $\implies$ $\log_b(a)=.5$.
 
-$f(n) = n^{.5}$, and $.5 = log_b(a) = .5$. Case 2 applies.
+$f(n) = n^{.5}$, and $.5 = \log_b(a) = .5$. Case 2 applies.
 
-$\implies T(n) = \Theta(n^{.5} log(n))$
+$\implies T(n) = \Theta(n^{.5} \log(n))$
 
 
 ### 3. $T(n) = 2T(n/4) + n$
 
-$a=2$, $b=4$ $\implies$ $log_b(a)=.5$.
+$a=2$, $b=4$ $\implies$ $\log_b(a)=.5$.
 
-$f(n) = n^1$, and $1 > log_b(a) = .5$, meaning that $f(n) = \Omega(n^{.5})$.
+$f(n) = n^1$, and $1 > \log_b(a) = .5$, meaning that $f(n) = \Omega(n^{.5})$.
 Also, $a f(n/b) = 2 f(n/4) = n/2 < c f(n)$ for some $c$ where $0 < c < 1$, so
 case 3 applies.
 
@@ -175,9 +209,9 @@ $\implies T(n) = \Theta(n)$
 
 ### 4. $T(n) = 2T(n/4) + n^2$
 
-$a=2$, $b=4$ $\implies$ $log_b(a)=.5$.
+$a=2$, $b=4$ $\implies$ $\log_b(a)=.5$.
 
-$f(n) = n^2$, and $2 > log_b(a) = .5$, meaning that $f(n) = \Omega(n^{.5})$.
+$f(n) = n^2$, and $2 > \log_b(a) = .5$, meaning that $f(n) = \Omega(n^{.5})$.
 Also, $a f(n/b) = 2 f(n/4) = n^2/8 < c f(n) = c n^2$ for some $c$ where $0 < c
 < 1$, so case 3 applies.
 
@@ -186,32 +220,32 @@ $\implies T(n) = \Theta(n^2)$
 
 ## b)
 
-Use the master method to show that the worst-case running time you gave in 1.d)
-for the binary-search recurrence is correct.
+*Use the master method to show that the worst-case running time you gave in 1.d)
+for the binary-search recurrence is correct.*
 
 $T(n) = T(n/2) + f(n)$
 
 $f(n) = c$, a constant.
 
-$a=1$, $b=2$ $\implies$ $log_b(a)=0$.
+$a=1$, $b=2$ $\implies$ $\log_b(a)=0$.
 
 $\implies T(n) = n^0 + O(1)$
 
 Both $T(n/2)$ and $f(n)$ are both $O(n^0)$, which falls into case 2 in the
 Master Theorem.
 
-$\implies T(n) = O(n^0 log(n)) = O(log(n))$
+$\implies T(n) = O(n^0 \log(n)) = O(\log(n))$
 
 
 # Problem 3
 
-Based on the pseudo code taught in class, implement the merge-sort algorithm
-for the sorting problem:
+*Based on the pseudo code taught in class, implement the merge-sort algorithm
+for the sorting problem:*
 
-**Input:** A sequence of $n$ numbers $A = (a_1, a_2, \dots, a_n)$.
+**Input:** *A sequence of $n$ numbers $A = (a_1, a_2, \dots, a_n)$.*
 
-**Output:** A reordered sequence $(a_1^\prime, a_2^\prime, \dots, a_n^\prime)$
-such that $a_1^\prime \leq a_2^\prime \leq \dots \leq a_n^\prime$
+**Output:** *A reordered sequence $(a_1^\prime, a_2^\prime, \dots, a_n^\prime)$
+such that $a_1^\prime \leq a_2^\prime \leq \dots \leq a_n^\prime$*
 
 
 ```{r}
@@ -258,5 +292,8 @@ Testing out the implementation:
 x <- runif(100)
 y <- mergeSort(x)
 
+# Check the mergesort implementation by comparing the resulting array with the
+# same array sorted instead by the built-in sort() function in R. 0 means a
+# match.
 sum(y != sort(x))
 ```
