@@ -1,0 +1,48 @@
+---
+title: Homework 3
+author: Ansel George
+output: pdf_document
+---
+
+1. Consider the knapsack problem:
+
+   A thief robbing a store finds n items. The $i$-th item is worth $v_i$
+   dollars and weighs $w_i$ pounds. The thief wants to take as valuable a load
+   as possible, but he can carry at most $W$ pounds in his knapsack. Which
+   items should he take?
+  
+   a) When the thief can take fractions of items, prove by contradiction that a
+      greedy algorithm gives you the optimal solution. Provide the pseudo code
+      for your algorithm.
+  
+   b) When the thief has to make a binary choice for each item, we've seen that
+      the greedy algorithm does not guarantee an optimal solution. Instead, a
+      dynamic programming approach can solve the problem. Please give a dynamic
+      programming solution that runs in $O(nW)$ time, and provide the
+      corresponding pseudo code.
+
+2. Breakpoint-based reversal sort on a circular sequence:
+
+   A DNA molecule is not always shaped like a linear segment. Some simple
+   organisms (such as bacteria) have a circular DNA molecule as a genome, where
+   the molecule has no beginning or end. Gene blocks on a circular genome can
+   be visualized as a sequence of integers written along the perimeter of a
+   circle. Two circular sequences would be considered equivalent if you could
+   rotate one of the circles and get the same sequence written on the other.
+
+   Give an approximation algorithm to sort a circular sequence by reversals
+   (i.e., transform it to the identity circular permutation). Evaluate your
+   algorithm's performance by measuring the approximation ratio. (Hint: How is
+   the number of breakpoints reduced after each step?)
+
+3. Suppose we have n professional wrestlers and we have a given list of r pairs
+   of wrestlers for which there are rivalries. Give an $O(n+r)$-time algorithm
+   that determines whether it is possible to designate some of the wrestlers as
+   part of the 'blue' team and the remainder as part of the 'red' team such
+   that each pair of rivalry is between wrestlers from different teams. If it
+   is possible to perform such a designation, your algorithm should produce it.
+
+4. Give an efficient algorithm to count the total number of paths in a directed
+   acyclic graph with $V$ vertices and $E$ edges. What is the running time of
+   your algorithm in terms of $V$ and $E$? (Hint: You can make use of the
+   topological-sort algorithm directly.)
