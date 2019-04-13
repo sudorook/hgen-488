@@ -4,22 +4,78 @@ author: Ansel George
 output: pdf_document
 ---
 
-1. Consider the knapsack problem:
+1. *Consider the knapsack problem:*
 
-   A thief robbing a store finds n items. The $i$-th item is worth $v_i$
+   *A thief robbing a store finds $n$ items. The $i$-th item is worth $v_i$
    dollars and weighs $w_i$ pounds. The thief wants to take as valuable a load
    as possible, but he can carry at most $W$ pounds in his knapsack. Which
-   items should he take?
+   items should he take?*
   
-   a) When the thief can take fractions of items, prove by contradiction that a
+   a) *When the thief can take fractions of items, prove by contradiction that a
       greedy algorithm gives you the optimal solution. Provide the pseudo code
-      for your algorithm.
-  
-   b) When the thief has to make a binary choice for each item, we've seen that
-      the greedy algorithm does not guarantee an optimal solution. Instead, a
-      dynamic programming approach can solve the problem. Please give a dynamic
-      programming solution that runs in $O(nW)$ time, and provide the
-      corresponding pseudo code.
+      for your algorithm.*
+ 
+      **Algorithm:**
+      
+      1. Compute the ratio of value to weight $\frac{v_i}{w_i}$ for each item
+         $i$.
+
+      2. Pull the largest (in terms of the value-weight ratio) item from the
+         list.
+
+         A. If the weight of the object is less than the remaining capacity of
+            the knapsack, then add the item and subtract its weight from the
+            capacity. Repeat this step with the next largest item.
+
+         B. If the weight of the item exceeds the remaining capacity $R$ of the
+            knapsack, place an $R$ weight of the item in the knapsack and
+            decrease the remaining capacity to 0.
+
+      3. If the knapsack is not full, return to 2. If it is, terminate the
+         search and RUN!!!
+
+      **Proof by contradiction:**
+
+      Suppose the greedy algorithm outlined above does not produce the maxmimum
+      value of stolen goods. This means that some item or fraction of an item
+      in the knapsack can be substituted with another item to increase the
+      value of contraband. More formally,
+
+      \begin{align}
+        \exists j \textrm{ where } j \notin K \textrm{ st. } \frac{v_j}{w_j} > \frac{v_k}{w_k} \textrm{ for some } k \in K
+      \end{align}
+
+      where $K$ is the set of items in the knapsack.
+
+      In the algorithm, the loop invariant for every iteration is each item $k$
+      in the knapsack has a greater ratio $\frac{v_k}{w_k}$ than any other item
+      that remains to be picked. $\Rightarrow\!\Leftarrow$
+
+      This is a contradiction, because if item $j$ can increase the value of
+      the knapsack, then it would have been added to the knapsack before any
+      item with lower value-weight ratio.
+
+   b) *When the thief has to make a binary choice for each item, we've seen
+      that the greedy algorithm does not guarantee an optimal solution.
+      Instead, a dynamic programming approach can solve the problem. Please
+      give a dynamic programming solution that runs in $O(nW)$ time, and
+      provide the corresponding pseudo code.*
+
+      **Algorithm:**
+
+      Let items $i_1, \dots, i_n$ be mapped to weights $w(i_1)$ and values
+      $v(i_1)$ and knapsack capacity be $W$. 
+
+      Case 1: If item $i_k$ is in the set of items in the optimal knapsack $K$,
+      then the value of the knapsack $V(K,W)$ is equivalent to $V(K - i_k,
+      W-w(i_k)) + v(i_k)$.
+
+      Case 2: If item $i_k$ is *not* in the items found in the optimal
+      knapsack, then the value $V(K,W)$ is equivalent to $V(K-i_k,W)$.
+
+      These two cases define subproblems that can be used to dynamically
+      reconstruct the overall problem.
+
 
 2. Breakpoint-based reversal sort on a circular sequence:
 
