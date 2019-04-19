@@ -2,6 +2,11 @@
 
 ## Program description
 
+This program will read in a sequence of amino acids from a text file and output
+pairwise sequence alignments for all the provided sequences in a file called
+\<input\>.align.txt.
+
+
 ### utils.h, utils.c
 
 Implements utility functions for:
