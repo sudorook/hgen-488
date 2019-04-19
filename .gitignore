@@ -1,5 +1,13 @@
 #
+# Manual
 #
+
+align_blosum62
+substring_search
+
+
+#
+# Tarballs and compressed files
 #
 
 *.tgz
