@@ -4,101 +4,323 @@ author: Ansel George
 output: pdf_document
 ---
 
-1. *Consider the knapsack problem:*
+## Problem 1
 
-   *A thief robbing a store finds $n$ items. The $i$-th item is worth $v_i$
-   dollars and weighs $w_i$ pounds. The thief wants to take as valuable a load
-   as possible, but he can carry at most $W$ pounds in his knapsack. Which
-   items should he take?*
+*Consider the knapsack problem:*
+
+*A thief robbing a store finds $n$ items. The $i$-th item is worth $v_i$
+dollars and weighs $w_i$ pounds. The thief wants to take as valuable a load as
+possible, but he can carry at most $W$ pounds in his knapsack. Which items
+should he take?*
+
+a) *When the thief can take fractions of items, prove by contradiction that a
+   greedy algorithm gives you the optimal solution. Provide the pseudocode for
+   your algorithm.*
+
+   **Algorithm:**
+   
+   1. Compute the ratio of value to weight $\frac{v_i}{w_i}$ for each item $i$.
+
+   2. Pull the largest (in terms of the value-weight ratio) item from the list.
+
+      A. If the weight of the object is less than the remaining capacity of the
+         knapsack, then add the item and subtract its weight from the capacity.
+         Repeat this step with the next largest item.
+
+      B. If the weight of the item exceeds the remaining capacity $R$ of the
+         knapsack, place an $R$ weight of the item in the knapsack and decrease
+         the remaining capacity to 0.
+
+   3. If the knapsack is not full, return to 2. If it is, terminate the search
+      and RUN!!!
+
+   **Proof by contradiction:**
+
+   Suppose the greedy algorithm outlined above does not produce the maximum
+   value of stolen goods. This means that some item or fraction of an item in
+   the knapsack can be substituted with another item to increase the value of
+   contraband. More formally,
+
+   \begin{align}
+     \exists j \textrm{ where } j \notin K \textrm{ st. } \frac{v_j}{w_j} > \frac{v_k}{w_k} \textrm{ for some } k \in K
+   \end{align}
+
+   where $K$ is the set of items in the knapsack.
+
+   In the algorithm, the loop invariant for every iteration is each item $k$ in
+   the knapsack has a greater ratio $\frac{v_k}{w_k}$ than any other item that
+   remains to be picked. $\Rightarrow\!\Leftarrow$
+
+   This is a contradiction, because if item $j$ can increase the value of the
+   knapsack, then it would have been added to the knapsack before any item with
+   lower value-weight ratio.
+
+   **Pseudocode:**
+
+   ```
+   FRACTIONAL_KNAPSACK(items, W):
+     knapsack = { 
+       remaining_W = W,
+       items = []
+     }
+     sorted_items = sort_desc(items.values/items.weights)
   
-   a) *When the thief can take fractions of items, prove by contradiction that a
-      greedy algorithm gives you the optimal solution. Provide the pseudo code
-      for your algorithm.*
- 
-      **Algorithm:**
-      
-      1. Compute the ratio of value to weight $\frac{v_i}{w_i}$ for each item
-         $i$.
+     counter = 1
+     while(knapsack.remaining_W > 0 OR counter <= length(sorted_items)):
+       if items[counter].weight > W:
+         knapsack.add( (remaining_W / items[counter].weight) * items[counter])
+         knapsack.remaining_W = 0
+       else
+         knapsack.add( items[counter] )
+         knapsack.remaining_W = remaining_W - item[counter].weight
+       end
+       counter = counter + 1
+     end
+     return knapsack
+   end
+   ```
 
-      2. Pull the largest (in terms of the value-weight ratio) item from the
-         list.
-
-         A. If the weight of the object is less than the remaining capacity of
-            the knapsack, then add the item and subtract its weight from the
-            capacity. Repeat this step with the next largest item.
-
-         B. If the weight of the item exceeds the remaining capacity $R$ of the
-            knapsack, place an $R$ weight of the item in the knapsack and
-            decrease the remaining capacity to 0.
-
-      3. If the knapsack is not full, return to 2. If it is, terminate the
-         search and RUN!!!
-
-      **Proof by contradiction:**
-
-      Suppose the greedy algorithm outlined above does not produce the maxmimum
-      value of stolen goods. This means that some item or fraction of an item
-      in the knapsack can be substituted with another item to increase the
-      value of contraband. More formally,
-
-      \begin{align}
-        \exists j \textrm{ where } j \notin K \textrm{ st. } \frac{v_j}{w_j} > \frac{v_k}{w_k} \textrm{ for some } k \in K
-      \end{align}
-
-      where $K$ is the set of items in the knapsack.
-
-      In the algorithm, the loop invariant for every iteration is each item $k$
-      in the knapsack has a greater ratio $\frac{v_k}{w_k}$ than any other item
-      that remains to be picked. $\Rightarrow\!\Leftarrow$
-
-      This is a contradiction, because if item $j$ can increase the value of
-      the knapsack, then it would have been added to the knapsack before any
-      item with lower value-weight ratio.
-
-   b) *When the thief has to make a binary choice for each item, we've seen
-      that the greedy algorithm does not guarantee an optimal solution.
-      Instead, a dynamic programming approach can solve the problem. Please
-      give a dynamic programming solution that runs in $O(nW)$ time, and
-      provide the corresponding pseudo code.*
-
-      **Algorithm:**
-
-      Let items $i_1, \dots, i_n$ be mapped to weights $w(i_1)$ and values
-      $v(i_1)$ and knapsack capacity be $W$. 
-
-      Case 1: If item $i_k$ is in the set of items in the optimal knapsack $K$,
-      then the value of the knapsack $V(K,W)$ is equivalent to $V(K - i_k,
-      W-w(i_k)) + v(i_k)$.
-
-      Case 2: If item $i_k$ is *not* in the items found in the optimal
-      knapsack, then the value $V(K,W)$ is equivalent to $V(K-i_k,W)$.
-
-      These two cases define subproblems that can be used to dynamically
-      reconstruct the overall problem.
+   Sorting the items to steal is $O(n \log n)$, and the runtime for picking
+   which items to steal is $O(n)$, so the combined algorithm is $O(n \log n)$.
 
 
-2. Breakpoint-based reversal sort on a circular sequence:
+b) *When the thief has to make a binary choice for each item, we've seen that
+   the greedy algorithm does not guarantee an optimal solution. Instead, a
+   dynamic programming approach can solve the problem. Please give a dynamic
+   programming solution that runs in $O(nW)$ time, and provide the
+   corresponding pseudocode.*
 
-   A DNA molecule is not always shaped like a linear segment. Some simple
-   organisms (such as bacteria) have a circular DNA molecule as a genome, where
-   the molecule has no beginning or end. Gene blocks on a circular genome can
-   be visualized as a sequence of integers written along the perimeter of a
-   circle. Two circular sequences would be considered equivalent if you could
-   rotate one of the circles and get the same sequence written on the other.
+   **Algorithm:**
 
-   Give an approximation algorithm to sort a circular sequence by reversals
-   (i.e., transform it to the identity circular permutation). Evaluate your
-   algorithm's performance by measuring the approximation ratio. (Hint: How is
-   the number of breakpoints reduced after each step?)
+   Let items $i_1, \dots, i_n$ be mapped to weights $w(i_1)$ and values
+   $v(i_1)$ and knapsack capacity be $W$. There are $n$ items. The optimal
+   value of a particular knapsack is denoted by V(n,W).
 
-3. Suppose we have n professional wrestlers and we have a given list of r pairs
-   of wrestlers for which there are rivalries. Give an $O(n+r)$-time algorithm
-   that determines whether it is possible to designate some of the wrestlers as
-   part of the 'blue' team and the remainder as part of the 'red' team such
-   that each pair of rivalry is between wrestlers from different teams. If it
-   is possible to perform such a designation, your algorithm should produce it.
+   To determine whether item $i_k$ is to be found in the optimal knapsack,
+   consider:
 
-4. Give an efficient algorithm to count the total number of paths in a directed
-   acyclic graph with $V$ vertices and $E$ edges. What is the running time of
-   your algorithm in terms of $V$ and $E$? (Hint: You can make use of the
-   topological-sort algorithm directly.)
+   Case 1: If item $i_k$ is indeed found in the set of items in the optimal
+   knapsack $K$, then the value of the knapsack $V(k,W)$ is equivalent to
+   $V(K-i_k, W-w(i_k)) + v(i_k)$.
+
+   Case 2: If item $i_k$ is *not* in the items found in the optimal knapsack,
+   then the value $V(K,W)$ is equivalent to $V(K-i_k,W)$.
+
+   These two cases define sub-problems that provide an optimal substructure
+   that can be used to dynamically reconstruct the overall solution.
+
+   **Pseudocode:**
+
+   ```
+   TRACEBACK(C, items):
+     w = ncol(K)
+     i = nrow(K)
+
+     knapsack = list()
+     
+     while(i > 0 AND w > 0):
+       if (C[i,w] == 1):
+         knapsack.push(items[i])
+         i = i - 1
+         w = w - items[i].weight
+       else:
+         i = i - 1
+       end
+     end
+
+     return(knapsack)
+   end
+
+   KNAPSACK_0_1_SEARCH(items, W):
+     L = length(items)
+
+     K := L x W matrix of scores (init to 0)
+     C := L x W matrix of choices (init to FALSE)
+
+     for i in sequence(1, L):
+       for w in sequence(1, W):
+         if items[i].weight <= W:
+           K[i,w] = max(K[i-1, w],
+                        K[i-1, w-item[i].weight] + item[i].value)
+           if K[i-1, w-item[i].weight] + item[i].value > max(K[i-1, w]:
+             C[i,w] = TRUE
+           end
+         else:
+           K[i,w] = K[i-1, w]
+         end
+       end
+     end
+
+     ITEMS = TRACEBACK(C)
+     return K[L,W], ITEMS
+   end
+   ```
+
+   The algorithm fills an $n \times W$ table, which requires $O(nW)$
+   computations, and the traceback to find the identity of the items in the
+   maximal backpack is at worst $O(n)$, the number of items. Therefore, the
+   algorithm is $O(nW + n) = O(nW)$.
+
+
+## Problem 2
+
+*Breakpoint-based reversal sort on a circular sequence:*
+
+*A DNA molecule is not always shaped like a linear segment. Some simple
+organisms (such as bacteria) have a circular DNA molecule as a genome, where
+the molecule has no beginning or end. Gene blocks on a circular genome can be
+visualized as a sequence of integers written along the perimeter of a circle.
+Two circular sequences would be considered equivalent if you could rotate one
+of the circles and get the same sequence written on the other.*
+
+*Give an approximation algorithm to sort a circular sequence by reversals
+(i.e., transform it to the identity circular permutation). Evaluate your
+algorithm's performance by measuring the approximation ratio. (Hint: How is the
+number of breakpoints reduced after each step?)*
+
+In the following description, values of $k$ correspond to the value of the
+segment in the sequence, also called the key. Values of $i$ and $j$ correspond
+to positions along the circular sequence. After reversal, the keys that
+elements $i$ and $j$ correspond to can change. $n$ is the length of the
+sequence.
+
+1. Parse the sequence and look for strips of contiguous values such that from
+   position $i$ to position $i+m$ for some $m$, the keys in the sub-segments
+   are all either increasing or decreasing by 1. Define the breakpoints to be
+   the locations in the sequences where strips end. (In effect, they occur when
+   two adjacent elements have non-sequential keys.) Ignore for now the
+   condition where when $i=n$, given sequence length $n$, and $i+1$ is mapped
+   to $1$ due to the circularity of the sequence.
+
+2. Consider elements $i$ and $j$ corresponding to key values $k$ and $k+1$,
+   where both are endpoints in different strips and $k \neq n$ and $k+1 \neq
+   1$. Because of the consecutively increasing/decreasing nature of strips, $k$
+   is necessarily the maximum of its strip and $k+1$ is the minimum of its
+   strip. Perform a reversal between element $i+1$ and element $l$, where
+   element $l$ corresponds to the far endpoint of the strip containing $j$.
+
+   For clarity, given the two endpoints $a$ and $b$ of a strip with minimum key
+   $k+1$ and element $c$ corresponding to key $k$ (where $k \neq n$ and
+   $k+1 \neq 1$, the far endpoint is the one that satisfies $max(a-c, b-c)$.
+
+   Given a reversal between $i+1$ and $l$:
+
+   * If $j=l$, then the reversal will place keys $k$ and $k+1$ next to one
+     another, creating a contiguous strip.
+   * If $j \neq l$, then an additional reversal between the element
+     corresponding to key $k+1$ and element $i+1$ will make the $k+1$ and $k$
+     keys adjacent to one another.
+
+3. Continue iterating over breakpoints until none remain. Then:
+
+   * If, for example, target sequence has keys that increase clockwise, and the
+     iteration produces keys ordered counter-clockwise, perform a reversal
+     around element $1$.
+   * If the target sequence and output sequence has the same orientation, do
+     nothing.
+
+4. Return the sequence and set of reversal necessary to convert them.
+
+The iteration will reduce the number of breakpoints by 1 in at most 2 steps.
+Under a best-case scenario, each reversal will reduce the number of breakpoints
+by 2. Therefore, the approximation ratio is for a sequence $\pi$ with
+breakpoints $b(\pi)$:
+
+\begin{align}
+OPT(\pi) &= \frac{b(\pi)}{2} \\
+A(\pi) &\leq 2 b(\pi) \\
+\implies \frac{A(\pi)}{OPT(\pi)} &\leq 4
+\end{align}
+
+
+
+## Problem 3
+
+*Suppose we have $n$ professional wrestlers and we have a given list of $r$
+pairs of wrestlers for which there are rivalries. Give an $O(n+r)$-time
+algorithm that determines whether it is possible to designate some of the
+wrestlers as part of the 'blue' team and the remainder as part of the 'red'
+team such that each pair of rivalry is between wrestlers from different teams.
+If it is possible to perform such a designation, your algorithm should produce
+it.*
+
+Consider a graph with $n$ nodes, each representing a wrestler, and $r$ edges
+between nodes, each representing a rivalry between wrestlers.
+
+Perform a modified breadth-first search on the tree:
+
+0. Start at node 0 and place its descendants in the fifo, and assign node 0 to
+   group 'blue' (or 'red' if you prefer) and its children to the rival group
+   'red' (or 'blue').
+
+1. Iterate the modified BFS over nodes. For each node: 
+   - Place unvisited (code WHITE) children at the end of the fifo and them a
+     color to corresponding to the color opposing its parent (i.e. 'red'
+     parents have 'blue' children and vice versa).
+   - If already visited (code BLACK or GREY), check whether its assigned color
+     is the opposite of the parent in the current BFS path.
+     * If yes, then continue.
+     * If no, then exit. This means that a bipartite separation of rival pairs
+       is not possible in this graph.
+   - If a node has no parent, for example when a wrester has no rivalry, then
+     assign it to a random team.
+
+2. Terminate the BFS when the queue is empty and all nodes have been visited.
+
+3. Iterate over the searched tree and return the 'red' or 'blue' assignment for
+   each node. These are the teams.
+
+The modified BFS has runtime $O(n+r)$, and recovering the team assignment for
+each wrester from the BFS graph is $O(n)$, so the combined algorithm is
+$O(n+r)$. This algorithm will need to be modified if, for example, the teams
+need to have the same number of players.
+
+
+## Problem 4
+
+*Give an efficient algorithm to count the total number of paths in a directed
+acyclic graph with $V$ vertices and $E$ edges. What is the running time of your
+algorithm in terms of $V$ and $E$? (Hint: You can make use of the
+topological-sort algorithm directly.)*
+
+Use DFS to generate a topological sorting of the DAG ($O(V+E)$) and store the
+result in a linked list ordered by decreasing finishing time.
+
+The total number of paths in the graph can be implemented as a dynamical
+programming problem where the  number of paths at a vertex is the sum of the
+number of paths through the subgraph descended from the vertex.
+
+For a DAG, the number of paths for a given vertex can be stated as the sum of
+edges leaving the node and the sum of paths for the sub-tree. This forms a
+substructure that allows the problem to be broken into a series of sub-problems
+that combined can generate the overall solution.
+
+1. Create an array $P$ of length $n$, where $n$ is equal to the number of
+   elements in $V$, and iterate over the topological sorting of the vertices,
+   starting with the last element of the list.
+
+2. For element $i \in V$, set $P[i] = e_{i} + \sum_j^k P[j]$, where $e_i$ is
+   the number of edges leading out of $i$ and $\sum_j^k P[j]$ is the sum of the
+   number of paths $P[j]$ through all elements $j$. Each $j$ is a direct
+   descendent of $i$. In the initial case where $i=n$, set $P[i]=0$.
+
+   Basically, this computes for each vertex the number of paths originating at
+   it and passing through its entire subgraph. Because the computation starts
+   at the end of the sorted graph, the algorithm can reuse path counts as it
+   moves toward the beginning of the tree. This partitioning is possible
+   because the graph is acyclic.
+
+3. Terminate the iteration when the first vertex in the topological sort is
+   processed.
+
+4. Sum the entries in $P$. This will yield the total number of paths in the
+   graph.
+
+The dynamic programming algorithm visits each vertex $i \in V$ exactly once and
+each edge $e \in E$ exactly once, so the worst-case runtime is $O(V+E)$.
+Combined with the topological sort performed beforehand and its $O(V+E)$
+runtime, the total runtime is also $O(V+E)$.
+
+Alternatively, one could modify the DFS algorithm to store path lengths through
+each vertex, removing the need to iterate through the topologically sorted
+graph afterwards. The runtime for this would still be $O(V+E)$, though.
