@@ -4,27 +4,50 @@ author: Ansel George
 output: pdf_document
 ---
 
+```{r, message=F}
+library(stringr)
+library(dplyr)
+library(tidyr)
+library(igraph)
+
+# set.seed(2)
+set.seed(8)
+```
+
 # Problem 1
 
 *Can you build a hash table for 3-tuples for the following sequences and search
 for string "TAGCTAGCT"? Write down the pseudo code and then implement it.*
 
-## Pseudocode
-
-## Implementation
-
-```{c, eval=F}
+```
 S1 = "GCTGCTGCTGCTAAACGTTTGGGGCAGTCGAT"
 S2 = "GGTGCTCCAAGCTTTTGAGTCTGCTAGTGTCAACCCT"
 S3 = "GTGGGCCCCCTAGCTAGCTAGCTGGGGCAC"
 S4 = "TGTCGCTGGCTGGACTGCTGATCGTAGTAG"
 ```
 
-See code.
+
+## Pseudocode
+
+## Implementation
+
+Code copied below.
+
+
+```{bash}
+cat hashtable/src/main.cpp
+```
+
 
 ## Substring search
 
-See code.
+To run it yourself, run:
+
+```{bash}
+cd hashtable
+make clean
+make && ./substring_search
+```
 
 
 # Problem 2
@@ -33,7 +56,20 @@ See code.
 How can we search for "GWO" using FM index (implementation is optional, just
 write down the procedure)?*
 
-See code.
+Code copies below.
+
+```{bash}
+cat bwt/src/main.cpp
+```
+
+To run it yourself, run:
+
+```{bash}
+cd bwt
+make clean
+make && ./bwt
+```
+
 
 
 # Problem 3
@@ -41,6 +77,36 @@ See code.
 *Give an $O(n \log k)$-time algorithm to merge $k$ sorted lists into one sorted
 list, where $n$ is the total number of elements in all the input lists. (Hint:
 Use a min-heap for $k$-way merging.)*
+
+The following algorithm can be adjusted to sort the merged lists in ascending
+or descending order based on one's preference. As written, it will return a
+merged list in ascending order.
+
+1. Initialization:
+   - Create a heap from the minimum values of the $k$ sorted lists.
+   - Push the items from their sorted lists into the heap, so that the length
+     of each of the $k$ lists has decreased by 1.
+   - Runtime: $O(k \log k)$.
+
+2. Iteration:
+   - Take the minimum of the heap of minimum values and push to a list to
+     contain the $n$-element sort. $O(1)$
+   - Update the heap after removing the root. $O(\log k)$
+   - Pop the minimum element from the list the root came from. $O(1)$
+      * If the list is empty, skip this step.
+   - Push the minimum element to the heap of minimum values and update the keys. $O(\log k)$
+
+3. Termination:
+   - Continue popping from the minimum heap and pushing items from the $k$
+     sorted lists until all $n$ items have been processed.
+
+The runtime is:
+
+\begin{align}
+T(n) &= O( k \log k + n (\log k + \log k) ) \\
+  &= O( (2n+k) \log k) \\
+  &\sim O(n \log k ) \textrm{ when }n \gg k
+\end{align}
 
 
 # Problem 4
@@ -53,8 +119,11 @@ steps:*
 distribution over the four nucleotides ATCG.*
 
 ```{r}
+dna_length <- 1000
 nucleotides <- c("A", "T", "C" ,"G")
-dna <- sample(nucleotides, 1000, replace=T)
+
+# Sample the nucleotides with a uniform distribution.
+dna <- sample(nucleotides, dna_length, replace=T)
 dna <- paste(unlist(dna), collapse='')
 ```
 
@@ -64,17 +133,166 @@ with uniform start position.*
 
 ```{r}
 read_length <- 25
-read_start <- sample(seq(1, 1000-25), 20, replace=T)
+read_count <- 400
+
+# Generate a random set of starting points for each read, sampled uniformly
+# from the range of possible starting points over the DNA sequence.
+read_start <- sample(seq(1, dna_length-read_length+1), read_count, replace=T)
 reads <- substring(dna, first=read_start, last=read_start+read_length-1)
 ```
 
-
 ## (iii) Construct a graph of $k$-mers with $k = 10$.
+
+```{r}
+# Generate the spectrum for a sequence `string` using k-mers of size `size`.
+getSpectrum <- function(string, size) {
+  # Fail of the size exceeds the string length.
+  if (size > str_length(string)) {
+    return(-1)
+  }
+
+  # Using a sliding k-mer window over the string, append each string to a set
+  # of all k-mer windows.
+  spectrumSet <- c()
+  for (i in 1:(str_length(string)-size+1)) {
+    spectrumSet <- append(spectrumSet, str_sub(string, i, size+i-1))
+  }
+  return(spectrumSet)
+}
+```
+
+```{r}
+kmer_length <- 10
+
+# Get spectrum of all reads.
+spectrumSet <- c()
+for (read in reads) {
+  spectrumSet <- append(spectrumSet, getSpectrum(read, kmer_length))
+}
+
+# Use dplyr for ease of computing the spectrum and handling multiple
+# occurrences of a particular read.
+spectrum_df <- tbl_df(data.frame("kmer"=spectrumSet))
+spectrum_df <- spectrum_df %>% group_by(kmer) %>% count()
+
+# Make the adjacency matrix for the de Bruijn graph.
+G <- matrix(0, nrow=nrow(spectrum_df), ncol=nrow(spectrum_df))
+
+for (i in 1:nrow(G)) {
+  for (j in 1:ncol(G)) {
+    if (j == i) next # don't allow self-edges
+    i1 <- str_sub(spectrum_df$kmer[i], 1, kmer_length-1)
+    j1 <- str_sub(spectrum_df$kmer[j], 2, kmer_length)
+    if (j1 == i1) {
+      G[j,i] <- G[j,i] + spectrum_df$n[j]
+    }
+  }
+}
+```
 
 
 ## (iv) Find the Eulerian path of the graph.
 *Ideally, you solve this by writing your own code. It is acceptable if you use
 some package with graph functions to solve this.*
+
+```{r}
+# Function to generate the sequence from the path through the De Bruijn graph.
+getFullSequence <- function(paths, subsequences) {
+  full_sequence <- subsequences[paths[1]]
+  for (i in 2:length(paths)) {
+    full_sequence <- str_c(full_sequence, str_sub(subsequences[paths[i]], -1))
+  }
+  return(full_sequence)
+}
+
+# Compute the Eulerian path through De Bruijn graph `G`, where the indices of
+# the graph correspond to sequence data for each k-mer stored in
+# `subsequences`.
+# If there is no path through the graph (# unbalanced nodes > 2), the function
+# will fail.
+getEulerPath <- function(G, subsequences) {
+  M <- 1*(G>0) # matrix of edges, ignore the weights
+  unbalanced_nodes <- which(colSums(M)-rowSums(M) != 0, arr.ind=T)
+  unbalanced_scores <- (colSums(M)-rowSums(M))[unbalanced_nodes]
+
+  source_nodes <- which(colSums(M) == 0)
+  sink_nodes <- which(rowSums(M) == 0)
+
+  if ( (length(source_nodes) != length(sink_nodes)) ||
+      (length(unbalanced_nodes) > 2) ) {
+    print("This is bad. No Eulerian path exists.")
+    return(-1)
+  }
+
+  # If every node is perfectly balanced, just start anywhere. If not, start at
+  # the source node.
+  if (length(source_nodes) == 0) {
+    idx <- 1
+  } else {
+    idx <- source_nodes[1]
+  }
+  paths <- c(idx)
+  subpath <- c()
+  queue <- c()
+  origin <- source_nodes[1]
+  edgesum <- sum(M)+1
+
+  # Continue iterating until all edges are found. (Or some error occurs and
+  # causes premature exiting).
+  while ( length(paths) != edgesum ) {
+    new_idx <- which(M[idx,] > 0)
+
+    if (length(new_idx) == 0) {
+      if (idx == origin) {
+        if (length(subpath) > 0) {
+          paths <- append(paths, subpath)
+          subpath <- c()
+        }
+      }
+      if (length(queue) > 0) {
+        idx <- queue[1]
+        queue <- queue[-1]
+        split_idx <- which(paths == idx)
+        subpath <- paths[(split_idx+1):length(paths)]
+        paths <- paths[1:(split_idx)]
+        origin <- idx
+        next
+      }
+      break
+    } else if (length(new_idx) > 1) {
+      queue <- c(queue, idx)
+      M[idx, new_idx[1]] <- 0
+      idx <- new_idx[1]
+    } else {
+      M[idx, new_idx] <- 0
+      idx <- new_idx
+    }
+
+    paths <- c(paths, idx)
+  }
+
+  # Generate the subsequence from the path
+  subseq <- getFullSequence(paths, subsequences)
+
+  return(list(sequence=subseq, path=paths))
+}
+```
+
+```{r}
+res <- getEulerPath(G, spectrum_df$kmer)
+res$path
+res$sequence
+dna
+
+# Check that sequence produced matches the DNA input
+res$sequence == dna
+```
+
+```{r}
+f<-file("output.txt")
+writeLines(c(dna, res$sequence), f)
+close(f)
+```
 
 
 ## (v) Report the statistics of your result
@@ -84,31 +302,77 @@ of the two sequences and report the percentage of identity.*
 
 # Problem 5
 
-We extend PCST algorithm in class to find disease related gene modules:
+*We extend PCST algorithm in class to find disease related gene modules:*
 
-Instead of having an unweighted network, we now have co-expression gene
+*Instead of having an unweighted network, we now have co-expression gene
 network. In this undirected network, any two genes are linked with an edge,
 with the edge weight being the correlation of gene expression (-1 to 1) across
 a given set of gene expression datasets. We assume that genes with high
 co-expression (both positive and negative) are likely to be involved in the
-same biological processes.
+same biological processes.*
 
-Given the disease relevance of genes (p-values) and the weighted co-expression
-network,
+*Given the disease relevance of genes (p-values) and the weighted co-expression
+network,*
 
 ## a)
-Extend the PCST algorithm discussed in class to find disease related gene
+*Extend the PCST algorithm discussed in class to find disease related gene
 modules. We have two criteria for choosing gene modules: they should be
 enriched with genes with high disease relevance (small p-values), and the genes
-in the subgraphs should be tightly co-expressed.
+in the subgraphs should be tightly co-expressed.*
+
 
 ## b)
-In PCST, we combine vertex and edge scores by choosing a relative weight that
+*In PCST, we combine vertex and edge scores by choosing a relative weight that
 balances the two types of evidence. For example, if we put too much weight on
 edge scores, we may find a subnetwork with many co-expressed genes but no
-disease relevance. Discuss how you may choose this relative weight.
+disease relevance. Discuss how you may choose this relative weight.*
+
+Approach 1: Scale the vertices based on the correlations.
+
+One can take the adjacency matrix of genes, where each entry is the correlation
+measured between them, and compute its eigenvectors. The matrix should be
+transformed beforehand by taking the absolute values of correlations (strong
+negative correlations are insightful here). The edges in the matrix could
+represent connections known *a priori*, or the matrix could be allowed to be
+strongly connected, assuming that most correlations are weak and near 0. The
+resulting eigenvector will contain loadings for each vertex that signify its
+importance to 'flow' through the network, which can then be used to scale the
+p-values of the vertices before solving the PCST.
+
+This does have the drawback of there likely being a highly modular structure to
+the gene regulatory network, which will cause the principal eigenvector to
+heavily weigh large significant subgraphs and ignore small significant
+subgraphs. Smaller significant subgraphs will be captured by other
+eigenvectors. One strategy here could be to linearly combine eigenvectors with
+eigenvalues above an arbitrary cutoff and use the resultant weight per-vertex
+to scale the p-values in the graph.
+
+Note that the p-values will have to be adjusted before running the PCST
+algorithm, which prioritizes high values over small ones. One could subtract
+the values from 1 or use a strategy outlined below.
+
+
+Approach 2: Transform the range of values.
+
+Correlations range from $[-1,1]$, and p-values from $[0,1]$. One can transform
+these values to a larger space. For example, one could transform p-values using
+an inverse sigmoid function so that p-values close to 1 will tend to negative
+infinity, and values close to 0 will tend to positive infinity. This
+transformation would prevent selection of subgraphs via PCST with elements
+without low p-values.
+
 
 ## c)
-PCST only returns the best tree. But for many complex disease, one would expect
-to have multiple disease related gene modules. How would you address this
-problem?
+*PCST only returns the best tree. But for many complex disease, one would
+expect to have multiple disease related gene modules. How would you address
+this problem?*
+
+If you make the assumption that the gene modules are orthogonal to one another
+in that they do not share components, one can run the PCST algorithm for the
+best global path and then remove the nodes (genes) in the graph. A less extreme
+option could be to remove the edges corresponding to the minimum path. Then,
+run the PCST algorithm again and repeat until no significant modules are found.
+
+Another strategy could use eigenvalue decomposition of the network to pick out
+important nodes in the network by looking at how vertices are weighed in each
+eigenvector.
