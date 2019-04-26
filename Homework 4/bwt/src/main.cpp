@@ -4,20 +4,28 @@
 #include <string>
 #include <vector>
 
+/* Hard-code the string for the BWT. */
 static const std::string main_string = "DOGWORD";
 
+/* Create a struct for the LF mapping. There are two vectors of tuples, F and
+ * L. F contains tuples for the first column, where the tuples are: (letter,
+ * rank). L is the same but for the last column. */
 struct LF_map
 {
   std::vector<std::tuple<char, int>> F;
   std::vector<std::tuple<char, int>> L;
 };
 
+/* Create a function to generate an LF map from a string produced by the BWT.
+ * */
 struct LF_map
 make_LF_map(std::string bwt_string)
 {
   std::string sorted_string = bwt_string;
   std::sort(sorted_string.begin(), sorted_string.end());
 
+  // Loop over the the array and use a counter to set the indices for all the
+  // letters.
   std::vector<std::tuple<char, int>> sorted;
   for (int i = 0; i < (int)sorted_string.size(); i++) {
     int counter = 0;
@@ -29,6 +37,7 @@ make_LF_map(std::string bwt_string)
     sorted.push_back(std::tuple<char, int>(sorted_string[i], counter));
   }
 
+  // Repeat the above, but this time for the last column (L).
   std::vector<std::tuple<char, int>> bwt;
   for (int i = 0; i < (int)bwt_string.size(); i++) {
     int counter = 0;
@@ -47,6 +56,7 @@ make_LF_map(std::string bwt_string)
   return (map);
 }
 
+/* Utility function for printing the LF mapping. */
 void
 print_LF_map(struct LF_map map)
 {
@@ -61,6 +71,7 @@ print_LF_map(struct LF_map map)
   std::cout << std::endl;
 }
 
+/* Utility function for printing the LF mapping. Take as string as input. */
 void
 print_LF_map(std::string bwt_string)
 {
@@ -76,6 +87,7 @@ print_LF_map(std::string bwt_string)
   std::cout << std::endl;
 }
 
+/* Compute the BWT for a string. */
 std::string
 BWT(std::string string)
 {
@@ -83,6 +95,7 @@ BWT(std::string string)
   int length = pre.size();
   std::vector<std::string> BWM;
 
+  /* Create the BWT matrix. */
   for (int i = 0; i < (int)pre.size(); i++) {
     std::string s = pre.substr(i, length) + pre.substr(0, i);
     BWM.push_back(s);
@@ -90,6 +103,7 @@ BWT(std::string string)
 
   std::sort(BWM.begin(), BWM.end());
 
+  /* Take the last column of the sorted BWT matrix. */
   std::string bwt;
   for (int i = 0; i < (int)BWM.size(); i++) {
     bwt = bwt + BWM[i][length - 1];
@@ -98,6 +112,7 @@ BWT(std::string string)
   return (bwt);
 }
 
+/* Compute the inverse BWT from the LF mapping. */
 std::string
 inverse_BWT(struct LF_map map)
 {
@@ -124,6 +139,7 @@ inverse_BWT(struct LF_map map)
   return (original.erase(0, 1));
 }
 
+/* Compute the inverse BWT from the BWT string via LF mapping. */
 std::string
 inverse_BWT(std::string bwt_string)
 {
@@ -151,6 +167,7 @@ inverse_BWT(std::string bwt_string)
   return (original.erase(0, 1));
 }
 
+/* Use the LF mapping to perform a substring search. */
 std::vector<std::string>
 substring_search(LF_map map, std::string substring)
 {
@@ -164,12 +181,18 @@ substring_search(LF_map map, std::string substring)
     }
   }
 
+  // Iterate backward over the search string. Loop over the LF table and until
+  // the search sequence length is reached or a viable subsequence is not
+  // possible to find.
   int counter = (int)substring.size() - 2;
   while ((indices.size() != 0) && counter >= 0) {
     for (int i = 0; i < (int)indices.size(); i++) {
       std::vector<int>* index = &indices[i];
       int idx = (*index)[index->size() - 1];
 
+      // If the L value matches the character in the substring, update the
+      // index for the F column and continue iterating. If there is no match,
+      // remove the path from the list of viable paths.
       if (std::get<0>(map.L[idx]) == substring[counter]) {
         int new_idx = std::distance(
           map.F.begin(), std::find(map.F.begin(), map.F.end(), map.L[idx]));
@@ -183,6 +206,9 @@ substring_search(LF_map map, std::string substring)
     counter--;
   }
 
+  // Generate a list of paths from the viable paths found in the above loop.
+  // Because the search sequences are found back-to-front, the character
+  // sequences need to be re-inverted to get the correct match.
   char c;
   std::vector<std::string> results;
   for (int i = 0; i < (int)indices.size(); i++) {
@@ -197,6 +223,7 @@ substring_search(LF_map map, std::string substring)
   return results;
 }
 
+/* Utility function for iterating over a vector and printing the contents. */
 void
 print_substrings(std::vector<std::string> substrings)
 {
@@ -205,6 +232,7 @@ print_substrings(std::vector<std::string> substrings)
   }
 }
 
+/* Filled with fluffy polar bears. */
 int
 main(void)
 {
