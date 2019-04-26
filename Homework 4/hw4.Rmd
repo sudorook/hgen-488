@@ -26,12 +26,45 @@ S3 = "GTGGGCCCCCTAGCTAGCTAGCTGGGGCAC"
 S4 = "TGTCGCTGGCTGGACTGCTGATCGTAGTAG"
 ```
 
-
 ## Pseudocode
+
+```
+MAKE_GLOBAL_HASH_TABLE(sequences):
+  for each sequence in sequences:
+    for each triplet in sequence:
+      value = hash_function(triplet)
+      append (sequence_id, triplet_position) to hash_table[value]
+    end
+  end
+end
+
+MAKE_SEARCH_HASH_TABLE(substring):
+  for each triplet in substring:
+    value = hash_function(triplet)
+    append (sequence_id, substring_position, triplet_position) to substring_table[value]
+  end
+end
+
+HASH_SEARCH(table, substring):
+  substring_table = MAKE_SEARCH_HASH_TABLE(substring)
+  subset_global_table = global_hash_table[values in substring_table]
+  for each candidate in subset_global_table:
+    append continguous set of candidate triplets to results
+  end
+  return results
+end
+```
+
 
 ## Implementation
 
 Code copied below.
+
+The implementation uses overlapping triplet windows for generating the hash
+table. This will take more space and be more computationally intensive in terms
+of creating the table and searching, albeit at the same order complexity, but
+it will have the advantage of allowing searches for substrings that do not have
+a length that is a multiple of three.
 
 
 ```{bash}
@@ -69,7 +102,6 @@ cd bwt
 make clean
 make && ./bwt
 ```
-
 
 
 # Problem 3
@@ -209,14 +241,15 @@ getFullSequence <- function(paths, subsequences) {
 # the graph correspond to sequence data for each k-mer stored in
 # `subsequences`.
 # If there is no path through the graph (# unbalanced nodes > 2), the function
-# will fail.
+# will return with an error.
 getEulerPath <- function(G, subsequences) {
   M <- 1*(G>0) # matrix of edges, ignore the weights
+
+  # Find the number of unbalanced nodes (colsums != rowsums)
   unbalanced_nodes <- which(colSums(M)-rowSums(M) != 0, arr.ind=T)
   unbalanced_scores <- (colSums(M)-rowSums(M))[unbalanced_nodes]
-
-  source_nodes <- which(colSums(M) == 0)
-  sink_nodes <- which(rowSums(M) == 0)
+  source_nodes <- which(colSums(M) == 0) # nodes with no incoming edges
+  sink_nodes <- which(rowSums(M) == 0) # nodes with no outgoing edges
 
   if ( (length(source_nodes) != length(sink_nodes)) ||
       (length(unbalanced_nodes) > 2) ) {
@@ -240,15 +273,25 @@ getEulerPath <- function(G, subsequences) {
   # Continue iterating until all edges are found. (Or some error occurs and
   # causes premature exiting).
   while ( length(paths) != edgesum ) {
+    # The new index is found by finding a non-zero entry in the row of idx.
     new_idx <- which(M[idx,] > 0)
 
+    # If no new index is found, then check that no unvisited edges in the
+    # `queue` exist. If yes, then set the idx variable to the first value in
+    # the queue and continue.
     if (length(new_idx) == 0) {
+      # If the path has ended up where it started, merge any existing subpath.
       if (idx == origin) {
         if (length(subpath) > 0) {
           paths <- append(paths, subpath)
           subpath <- c()
         }
       }
+      # If the path has reached a dead-end, check if the queue is empty. If
+      # not, then pop the first element of the queue as the new index, split
+      # the path into two halved: one leading up to the idx and one with the
+      # remainder. The subpath will be appended back to the path when the idx
+      # == origin (when the loop loops back on itself).
       if (length(queue) > 0) {
         idx <- queue[1]
         queue <- queue[-1]
@@ -258,12 +301,14 @@ getEulerPath <- function(G, subsequences) {
         origin <- idx
         next
       }
-      break
+      break # if there's nowhere else to go, just quit
     } else if (length(new_idx) > 1) {
+      # when multiple outgoing nodes, push to queue
       queue <- c(queue, idx)
       M[idx, new_idx[1]] <- 0
       idx <- new_idx[1]
     } else {
+      # keep travelling the path
       M[idx, new_idx] <- 0
       idx <- new_idx
     }
@@ -280,7 +325,7 @@ getEulerPath <- function(G, subsequences) {
 
 ```{r}
 res <- getEulerPath(G, spectrum_df$kmer)
-res$path
+head(res$path)
 res$sequence
 dna
 
@@ -298,6 +343,18 @@ close(f)
 ## (v) Report the statistics of your result
 *Comparing with the true genome sequences. For example, you can do an alignment
 of the two sequences and report the percentage of identity.*
+
+The assembled and true sequence are equal (100% identity). This is largely due
+to chance, as the random structure of the DNA sequence:
+
+ * Could have redundant kmers that result in multiple possible Eulerian paths.
+ * Could have insufficient coverage, leaving gaps in reads and >2 unbalanced
+   nodes.
+
+```{r}
+# Check that sequence produced matches the DNA input
+res$sequence == dna
+```
 
 
 # Problem 5
@@ -320,6 +377,16 @@ modules. We have two criteria for choosing gene modules: they should be
 enriched with genes with high disease relevance (small p-values), and the genes
 in the subgraphs should be tightly co-expressed.*
 
+All nodes have p-values between 0 and 1, and all the correlations are between
+-1 and 1. The goal is to find subgraphs with low p-values and high correlation,
+which is opposite what the default PCST algorithm optimizes (low edge costs and
+high vertex values).
+
+Take the absolute value of the correlation so that the values range from low
+correlation at 0 to high correlation at 1. Then, subtract all edge weight and
+vertex values from 1. The graph is now an instance of a PCST and can be solved
+by the algorithm.
+
 
 ## b)
 *In PCST, we combine vertex and edge scores by choosing a relative weight that
@@ -330,14 +397,15 @@ disease relevance. Discuss how you may choose this relative weight.*
 Approach 1: Scale the vertices based on the correlations.
 
 One can take the adjacency matrix of genes, where each entry is the correlation
-measured between them, and compute its eigenvectors. The matrix should be
+measured between each pair, and compute its eigenvectors. The matrix should be
 transformed beforehand by taking the absolute values of correlations (strong
-negative correlations are insightful here). The edges in the matrix could
-represent connections known *a priori*, or the matrix could be allowed to be
-strongly connected, assuming that most correlations are weak and near 0. The
-resulting eigenvector will contain loadings for each vertex that signify its
-importance to 'flow' through the network, which can then be used to scale the
-p-values of the vertices before solving the PCST.
+negative correlations are just as important as strong positive ones). The edges
+in the matrix could represent connections known *a priori*, or the matrix could
+be allowed to be strongly connected, where most edges are weighted near 0 due
+to weak correlations. The resulting eigenvector will contain loadings for each
+vertex that signify its importance to maximizing 'flow' through the network,
+which can then be used to scale the p-values of the vertices before solving the
+PCST.
 
 This does have the drawback of there likely being a highly modular structure to
 the gene regulatory network, which will cause the principal eigenvector to
@@ -349,17 +417,18 @@ to scale the p-values in the graph.
 
 Note that the p-values will have to be adjusted before running the PCST
 algorithm, which prioritizes high values over small ones. One could subtract
-the values from 1 or use a strategy outlined below.
+the values from 1 or use the strategy outlined below.
 
 
 Approach 2: Transform the range of values.
 
-Correlations range from $[-1,1]$, and p-values from $[0,1]$. One can transform
-these values to a larger space. For example, one could transform p-values using
-an inverse sigmoid function so that p-values close to 1 will tend to negative
-infinity, and values close to 0 will tend to positive infinity. This
-transformation would prevent selection of subgraphs via PCST with elements
-without low p-values.
+Absolute values of correlations range from $[0,1]$, and so do p-values from
+$[0,1]$. To make differences between weak and strong correlations more stark,
+one can transform these values to a larger space. For example, one could
+transform p-values using an inverse sigmoid function so that p-values close to
+1 will tend to negative infinity, and values close to 0 will tend to positive
+infinity. This transformation would prevent selection of subgraphs via PCST
+with elements without low p-values.
 
 
 ## c)
@@ -375,4 +444,4 @@ run the PCST algorithm again and repeat until no significant modules are found.
 
 Another strategy could use eigenvalue decomposition of the network to pick out
 important nodes in the network by looking at how vertices are weighed in each
-eigenvector.
+eigenvector, assuming the eigenvalues are not very low.
