@@ -1,0 +1,104 @@
+---
+title: Homework 5
+author: Ansel George
+output: pdf_document
+---
+
+# Problem 1
+
+Consider the propagated data error in evaluating function $sin(x)$, i.e., the
+error in the function value due to a perturbation $h$ in the argument $x$.
+
+## a)
+
+Estimate the absolute error and the relative error in evaluating $sin(x)$.
+
+
+## b)
+
+Estimate the condition number for this problem. For what values of the argument
+$x$ is this problem highly sensitive?
+
+
+# Problem 2
+
+(Cancellation can be a problem for scientific computations on digital
+computers. You can read about it in Heath’s Scientific Computing book section
+1.3.9.)
+
+Write a program to compute the exponential function $e^x$ using the infinite
+series: $e^x = 1 + x + x^2 /2! + x^3 /3! + \dots$.
+
+## a)
+Summing in the natural order, what stopping criterion should you use?
+
+## b)
+Test your program for $x = \pm 1, \pm 5, \pm 10, \pm 15, \pm 20$, and compare
+your results with the built-in exponential function $exp(x)$ in the language
+you use.
+
+## c)
+Can you use the series in this form to get accurate results for $x<0$? (Hint:
+$e^{-x} = 1/e^x$ .)
+
+## d)
+Can you rearrange the series or regroup the terms in any way to get more
+accurate results for $x < 0$?
+
+
+# Problem 3
+Consider the problem of finding the smallest positive root of the nonlinear
+equation:
+
+\begin{align}
+\cos(x) + 1/(1 + e^{-2x}) = 0
+\end{align}
+
+Investigate, both theoretically and empirically, the following iterative
+schemes for solving this problem using the starting point $x_0 = 3$:
+
+## a)
+
+$x_{k+1} = \arccos \big( -\frac{1}{1 + e^{-2x_k}} \big)$
+
+
+## b)
+
+$x_{k+1} = 0.5 \log \big( -\frac{1}{1 + \cos^{-1}(x_k)} \big)$
+
+
+## c)
+
+Newton's Method
+
+
+(For each scheme, show that it's indeed an equivalent fixed-point problem,
+determine analytically whether it's locally convergent and its expected
+convergence rate, and then implement the method to confirm your result.)
+
+# Problem 4
+
+Consider the evolution of DNA sequences in multiple species. Suppose the
+divergence time between two sequences is $t$, and the rate of substitution is
+$\alpha$. Under the Jukes-Canter model of DNA evolution, the probability of a
+nucleotide being substituted is $s_t = 3(\frac{1}{4} - \frac{1}{4}e^{-4\alpha
+t/3})$, and the probability of a nucleotide being conserved is: $r_t = 1-s_t =
+\frac{1}{4} + \frac{3}{4}e^{-4\alpha t/3}$.
+
+## a)
+Given a pair of DNA sequences $X_1$ and $X_2$, let $t$ be the divergence time
+from one sequence to the other. Since $\alpha$ and $t$ are coupled, we can set
+$\alpha$ to $1$. Write the likelihood function of $t$ in terms of the number of
+nucleotide substitution pairs $n_S$ and the number of conserved nucleotide
+pairs $n_C$ assuming a binomial model.
+
+## b)
+Implement the Newton’s method to give the maximum likelihood estimate of $t$
+when $n_S = 5$ and $n_C = 25$.
+
+
+# Problem 5
+
+Implement the Gram-Schmidt process for QR decomposition, including a function
+that can check whether the resulting basis vectors are orthonormal. Please give
+an example with input and output.
