@@ -1,104 +1,557 @@
 ---
 title: Homework 5
 author: Ansel George
-output: pdf_document
+fontsize: 11pt
+output:
+  pdf_document:
+    latex_engine: xelatex
+    highlight: kate
 ---
+
+```{r, message=F}
+library(ggplot2)
+
+set.seed(10)
+```
+
 
 # Problem 1
 
-Consider the propagated data error in evaluating function $sin(x)$, i.e., the
-error in the function value due to a perturbation $h$ in the argument $x$.
+*Consider the propagated data error in evaluating function $\sin(x)$, i.e., the
+error in the function value due to a perturbation $h$ in the argument $x$.*
 
 ## a)
 
-Estimate the absolute error and the relative error in evaluating $sin(x)$.
+*Estimate the absolute error and the relative error in evaluating $\sin(x)$.*
+
+The Taylor series for $\sin(x)$ is:
+
+\begin{align}
+\sin(x) &= \sin(0) + \cos(0) \frac{x}{1!} - \sin(0) \frac{x^2}{2!} - \cos(0) \frac{x^3}{3!} + \sin(0) \frac{x^4}{4!} + \dots \\
+  &= x - \frac{x^3}{3!} + \frac{x^5}{5!} - \frac{x^7}{7!} + \dots
+\end{align}
+
+\begin{align}
+\sin(x-h) &= \sin(h) + \cos(h) \frac{x-h}{1!} + -\sin(h) \frac{(x-h)^2}{2!} + -\cos(h) \frac{(x-h)^3}{3!} + \sin(h) \frac{(x-h)^4}{4!} + \dots \\
+\end{align}
+
+
+Perturbing $\sin(x)$ by small value $h$ can be expressed as:
+\begin{align}
+\sin(x+h) &= \sin(x)\cos(h) + \cos(x)\sin(h)
+\end{align}
+
+The absolute error is:
+\begin{align}
+\sin(x+h) - \sin(x) = \sin(x) (cos(h) - 1) + \cos(x)\sin(h)
+\end{align}
+
+The relative error is:
+\begin{align}
+\frac{\sin(x+h) - \sin(x)}{\sin(x)} = cos(h) - 1 + \cot(x)\sin(h)
+\end{align}
 
 
 ## b)
 
-Estimate the condition number for this problem. For what values of the argument
-$x$ is this problem highly sensitive?
+*Estimate the condition number for this problem. For what values of the
+argument $x$ is this problem highly sensitive?*
+
+The relative condition number for estimating $\sin(x)$ is:
+
+\begin{align}
+\frac{\left| \Delta y / y \right|}{\left| \Delta x / x \right|} &= \frac{\left| \big( \sin(x+h) - \sin(x) \big)/\sin(x) \right| }{\left| (x + h - x)/x \right|}
+\end{align}
+
+As $h \rightarrow 0$:
+
+\begin{align}
+\frac{\left| \Delta y / y \right|}{\left| \Delta x / x \right|} &= \frac{\left| \big( \sin(x+h) - \sin(x) \big)/\sin(x) \right| }{\left| (x + h - x)/x \right|} \\
+  &= \frac{\left| \sin(x+h) - \sin(x) \right|}{\left| h \right|} \frac{\left| x \right|}{\left| \sin(x) \right|} \\
+  &= \left| \cos(x) \right| \frac{\left| x \right| }{\left| \sin(x) \right|} \\
+  &= \left| x \cot(x) \right|
+\end{align}
+
+\begin{align}
+\frac{\left| \Delta y / y \right|}{\left| \Delta x / x \right|} &= \frac{\left| \big( \sin(x+h) - \sin(x) \big)/\sin(x) \right| }{\left| (x + h - x)/x \right|} \\
+  &= \frac{ \left| \big( \sin(x)\cos(h) + \cos(x)\sin(h) - \sin(x) \big) / \sin(x) \right| }{ \left| (x+ h - x)/x \right| } \\
+  &= \frac{ \left| \cos(h) + \cot(x)\sin(h) - 1 \right| }{ \left| h/x \right| }
+\end{align}
+
+The $\cot(x)$ function, which is the $\frac{\cos(x)}{\sin(x)}$, has poles where
+$\sin(x) = 0$, specifically when $x = 0, \pi, 2\pi, 3\pi, \dots$.
 
 
 # Problem 2
 
-(Cancellation can be a problem for scientific computations on digital
+*(Cancellation can be a problem for scientific computations on digital
 computers. You can read about it in Heath’s Scientific Computing book section
-1.3.9.)
+1.3.9.)*
 
-Write a program to compute the exponential function $e^x$ using the infinite
-series: $e^x = 1 + x + x^2 /2! + x^3 /3! + \dots$.
+*Write a program to compute the exponential function $e^x$ using the infinite
+series: $e^x = 1 + x + x^2 /2! + x^3 /3! + \dots$.*
+
+```{r}
+awfulExp <- function(x, threshold=.005) {
+  val <- rep(0, length(x))
+
+  sgn <- -1*(x<0) + 1*(x>0)
+  x <- abs(x)
+
+  for (i in 1:length(val)) {
+    counter <- 0
+    error <- 1
+    while(abs(error) >= threshold) {
+      error <- x[i]^counter / factorial(counter)
+      counter <- counter + 1
+      val[i] <- val[i] + error
+    }
+  }
+  return(val^sgn)
+}
+```
+
 
 ## a)
-Summing in the natural order, what stopping criterion should you use?
+*Summing in the natural order, what stopping criterion should you use?*
+
+
 
 ## b)
-Test your program for $x = \pm 1, \pm 5, \pm 10, \pm 15, \pm 20$, and compare
+*Test your program for $x = \pm 1, \pm 5, \pm 10, \pm 15, \pm 20$, and compare
 your results with the built-in exponential function $exp(x)$ in the language
-you use.
+you use.*
+
+Estimate for $e^x$ using the Taylor expansion:
+
+```{r}
+awfulExp(1)
+awfulExp(-1)
+
+awfulExp(5)
+awfulExp(-5)
+
+awfulExp(10)
+awfulExp(-10)
+
+awfulExp(15)
+awfulExp(-15)
+
+awfulExp(20)
+awfulExp(-20)
+```
+
+Difference between built-in `exp` function:
+
+```{r}
+x <- c(1, -1, 5, -5, 10, -10, 15, -15, 20, -20)
+qplot(x, abs(exp(x) - awfulExp(x))/ abs(exp(x)), xlab="x", ylab="relative error")
+```
+
 
 ## c)
-Can you use the series in this form to get accurate results for $x<0$? (Hint:
-$e^{-x} = 1/e^x$ .)
+*Can you use the series in this form to get accurate results for $x<0$? (Hint:
+$e^{-x} = 1/e^x$.)*
+
+If the supplied value is negative, cancellation problems can arise from simply
+summing across terms from the Taylor expansion.
+
 
 ## d)
-Can you rearrange the series or regroup the terms in any way to get more
-accurate results for $x < 0$?
+*Can you rearrange the series or regroup the terms in any way to get more
+accurate results for $x < 0$?*
+
+One can compute the exponential for the negated value (double negative ->
+positive) and then invert the final result.
 
 
 # Problem 3
-Consider the problem of finding the smallest positive root of the nonlinear
-equation:
+*Consider the problem of finding the smallest positive root of the nonlinear
+equation:*
 
 \begin{align}
 \cos(x) + 1/(1 + e^{-2x}) = 0
 \end{align}
 
-Investigate, both theoretically and empirically, the following iterative
-schemes for solving this problem using the starting point $x_0 = 3$:
+*Investigate, both theoretically and empirically, the following iterative
+schemes for solving this problem using the starting point $x_0 = 3$:*
 
-## a)
-
-$x_{k+1} = \arccos \big( -\frac{1}{1 + e^{-2x_k}} \big)$
-
-
-## b)
-
-$x_{k+1} = 0.5 \log \big( -\frac{1}{1 + \cos^{-1}(x_k)} \big)$
-
-
-## c)
-
-Newton's Method
-
-
-(For each scheme, show that it's indeed an equivalent fixed-point problem,
+*(For each scheme, show that it's indeed an equivalent fixed-point problem,
 determine analytically whether it's locally convergent and its expected
-convergence rate, and then implement the method to confirm your result.)
+convergence rate, and then implement the method to confirm your result.)*
+
+## a) $x_{k+1} = \arccos \big( -\frac{1}{1 + e^{-2x_k}} \big)$
+
+Rearranging the equation:
+\begin{align}
+&\cos(x) + 1/(1 + e^{-2x}) = 0 \\
+\implies &\cos(x) = -1/(1 + e^{-2x}) \\
+\implies &x = \arccos(-1/(1 + e^{-2x}))
+\end{align}
+
+Converting the expression to an iteration yields:
+\begin{align}
+x_{k+1} &= \arccos(-1/(1 + e^{-2x_k})) \\
+  &= g(x_k)
+\end{align}
+
+### Theoretical
+
+The derivative of $g(x_k)$ is:
+
+\begin{align}
+g^\prime(x) &= \frac{\partial}{\partial x} \arccos\Big(\frac{-1}{1 + e^{-2x_k}}\Big) \\
+  &= -\bigg( 1 - \frac{1}{(1 + e^{-2x_k})^2} \bigg)^{-\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{(1 + e^{-2x_k})^2}\bigg) \\
+  &= -\bigg( \frac{(1 + e^{-2x_k})^2 - 1}{(1 + e^{-2x_k})^2} \bigg)^{-\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{(1 + e^{-2x_k})^2}\bigg) \\
+  &= -\bigg( \frac{1}{(1 + e^{-2x_k})^2 - 1} \bigg)^{\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{1 + e^{-2x_k}}\bigg) \\
+  &= -\bigg( \frac{1}{\big( (1 + e^{-2x_k}) + 1 \big) \big(  (1 + e^{-2x_k}) - 1 \big)} \bigg)^{\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{1 + e^{-2x_k}}\bigg) \\
+  &= -\bigg( \frac{1}{2 + e^{-2x_k}} \bigg)^{\frac{1}{2}} \bigg(\frac{2e^{-x_k}}{1 + e^{-2x_k}}\bigg) \\
+\end{align}
+
+The slope of the derivative is less than 1 for all $x$, meaning that the
+iterative algorithm will converge on the root. At $x_0 = 3$, the derivative
+evaluates to:
+
+```{r}
+-(1/(2 + exp(-2*3)))^.5 * (2*exp(-3)/(1+exp(-2*3)))
+```
+
+```{r}
+x <- seq(2.5, 3.5, .001)
+qplot(x, acos(-1 / (1+exp(-2*x))), geom="line", ylab="f(x)")
+qplot(x, -(1/(2 + exp(-2*x)))^.5 * (2*exp(-x)/(1+exp(-2*x))), geom="line", ylab="df/dx")
+```
+
+
+\begin{align}
+\left| f^\prime(x^*) \right| &= -\sin(x) - \frac{1}{(1 + e^{-2x})^2}(-2e^{-2x}) \\
+  &= -\sin(x) + \frac{2e^{-2x}}{(1 + e^{-2x})^2}
+\end{align}
+
+
+### Empirical
+
+```{r}
+findRootv1 <- function(x0=3, threshold=.005) {
+  error <- 1
+  val <- x0
+  counter <- 0
+  while(error >= threshold) {
+    tmp <- acos(-1 / (1+exp(-2*val)))
+    error <- abs(val - tmp)
+    val <- tmp
+    counter <- counter + 1
+  }
+  return(list(root=val, steps=counter))
+}
+```
+
+```{r}
+res1 <- findRootv1(3)
+res1$root
+res1$steps
+```
+
+
+## b) $x_{k+1} = 0.5 \log \big( -\frac{1}{1 + \cos^{-1}(x_k)} \big)$
+
+Rearranging the equation:
+\begin{align}
+\cos(x) + 1/(1 + e^{-2x}) &= 0 \\
+\implies 1 + e^{-2x} &= -\cos^{-1}(x) \\
+\implies e^{-2x} &= -\cos^{-1}(x) - 1 \\
+\implies -2x &= \log\big( -\cos^{-1}(x) - 1 \big) \\
+\implies x &= -.5 \log\big( -\cos^{-1}(x) - 1 \big) \\
+\implies x &= .5 \log\bigg( \frac{-1}{\cos^{-1}(x) + 1} \bigg)
+\end{align}
+
+Converting the expression to an iteration yields:
+\begin{align}
+  x_{k+1} &= .5 \log\bigg( \frac{-1}{\cos^{-1}(x_k) + 1} \bigg) \\
+  &= g(x_k)
+\end{align}
+
+### Theoretical
+
+The derivative of $g(x_k)$ is:
+
+\begin{align}
+g^\prime(x) &= \frac{\partial}{\partial x} 0.5 \log \bigg( -\frac{1}{1 + \cos^{-1}(x_k)} \bigg) \\
+  &= \frac{\partial}{\partial x} -0.5 \log \big( -1 - \cos^{-1}(x_k) \big) \\
+  &= -0.5 \bigg( \frac{1}{\cos^{-1}(x) + 1} \bigg) \tan(x)\sec(x) \\
+  &= -0.5 \bigg( \frac{\tan(x)\sec(x)}{\sec(x) + 1} \bigg)
+\end{align}
+
+The derivative has a pole when the secant is equal to -1, when $x=\pi$. The
+starting point, $x_0=3$, is close to this pole, and evaluating the derivative
+that that point yields:
+
+```{r}
+# -.5*(tan(3)/cos(3)^2 + tan(3)/cos(3))
+-.5*(tan(3)/cos(3) / (1/cos(3) + 1))
+```
+
+The magnitude of the slope is much larger than 1, so the iterative algorithm at
+that point will diverge.
+
+
+```{r}
+x <- seq(2.5, 3.5, .005)
+qplot(x, .5 * log( -1 / (1 + 1/cos(x))), ylab="f(x)", geom="line")
+# qplot(x, -.5*(tan(x)/cos(x)^2 + tan(x)/cos(x)), geom="line")
+qplot(x, -.5*(tan(x)/cos(x) / (1/cos(x) + 1)), ylab="df/dx", geom="line")
+```
+
+### Empirical
+
+```{r}
+findRootv2 <- function(x0=3, threshold=.005) {
+  error <- 1
+  val <- x0
+  counter <- 0
+  while(error >= threshold) {
+    tmp <- .5 * log( -1 / (1 + 1/cos(val)) )
+    error <- abs(val - tmp)
+    val <- tmp
+    counter <- counter + 1
+  }
+  return(list(root=val, steps=counter))
+}
+```
+
+```{r}
+# res2 <- findRootv2(3)
+# res2$root
+# res2$steps
+```
+
+
+## c) Newton's Method
+
+The derivative of the nonlinear equation is:
+\begin{align}
+-\sin(x) + \frac{2e^{-2x}}{\big(1+ e^{-2x}\big)^2}
+\end{align}
+
+Newton's method, which is an iterative algorithm of the form $x_{k+1} =
+x_k - \frac{f(x_k)}{f^\prime(x_k)}$.
+
+### Theoretical
+
+### Empirical
+
+```{r}
+f <- function(x) {
+  return(cos(x) + 1/(1+exp(-2*x)))
+}
+
+fprime <- function(x) {
+  return(-sin(x) + 2*exp(-2*x)/(1+exp(-2*x))^2)
+}
+
+findRootNewton <- function(x0=3, threshold=.005) {
+  error <- 1
+  val <- x0
+  counter <- 0
+  while(error >= threshold) {
+    tmp <- f(val) / fprime(val)
+    error <- abs(tmp)
+    val <- val - tmp
+    counter <- counter + 1
+  }
+  return(list(root=val, steps=counter))
+}
+```
+
+```{r}
+res3 <- findRootNewton(3)
+res3$root
+res3$steps
+```
+
+
 
 # Problem 4
 
-Consider the evolution of DNA sequences in multiple species. Suppose the
+*Consider the evolution of DNA sequences in multiple species. Suppose the
 divergence time between two sequences is $t$, and the rate of substitution is
 $\alpha$. Under the Jukes-Canter model of DNA evolution, the probability of a
 nucleotide being substituted is $s_t = 3(\frac{1}{4} - \frac{1}{4}e^{-4\alpha
 t/3})$, and the probability of a nucleotide being conserved is: $r_t = 1-s_t =
-\frac{1}{4} + \frac{3}{4}e^{-4\alpha t/3}$.
+\frac{1}{4} + \frac{3}{4}e^{-4\alpha t/3}$.*
 
 ## a)
-Given a pair of DNA sequences $X_1$ and $X_2$, let $t$ be the divergence time
+*Given a pair of DNA sequences $X_1$ and $X_2$, let $t$ be the divergence time
 from one sequence to the other. Since $\alpha$ and $t$ are coupled, we can set
 $\alpha$ to $1$. Write the likelihood function of $t$ in terms of the number of
 nucleotide substitution pairs $n_S$ and the number of conserved nucleotide
-pairs $n_C$ assuming a binomial model.
+pairs $n_C$ assuming a binomial model.*
+
+\begin{align}
+L(t; n_S, n_C) &= { n_S + n_C \choose n_S } s_t^{n_S} r_t^{n_C} \\
+  &= { n_S + n_C \choose n_S } \bigg(\frac{1}{4}\bigg)^{n_S + n_C} \big(3 - 3 e^{-4t/3} \big)^{n_S} \big(1 + 3 e^{-4t/3} \big)^{n_C} \\
+  &\propto \big(3 - 3 e^{-4t/3} \big)^{n_S}  \big(1 + 3 e^{-4t/3} \big)^{n_C}
+\end{align}
+
 
 ## b)
-Implement the Newton’s method to give the maximum likelihood estimate of $t$
-when $n_S = 5$ and $n_C = 25$.
+*Implement the Newton's method to give the maximum likelihood estimate of $t$
+when $n_S = 5$ and $n_C = 25$.*
+
+The maximum likelihood estimate is the value of $t$ that maximizes the value of
+the likelihood. This corresponds to points where the derivative of the
+likelihood (or log-likelihood) is 0. These roots can be found by Newton's
+method.
+
+Let $f(t)$ be the derivative of $L(t;n_S=5,n_C=25)$:
+\begin{align}
+f(t) &= \frac{d}{dt}\bigg\{ \big(3 - 3 e^{-4t/3} \big)^{n_S}  \big(1 + 3 e^{-4t/3} \big)^{n_C}\bigg\}\\
+  &= n_S \big(3 - 3 e^{-4t/3} \big)^{n_S-1} 4e^{-4t/3} \big(1+3e^{-4t/3} \big)^{n_C} + \big(3-3e^{-4t/3} \big)^{n_S} n_C\big(1+3e^{-4t/3} \big)^{n_C-1} -4e^{-4t/3} \\
+  &=  4e^{-4t/3} \big(3 - 3 e^{-4t/3} \big)^{n_S-1} \big(1+3e^{-4t/3} \big)^{n_C-1} \Big(-n_C \big(3-3e^{-4t/3} \big) + n_S \big(1+3e^{-4t/3} \big) \Big) \\
+  &=  4e^{-4t/3} L\big(t; n_S-1, n_C-1\big) \Big( (n_S-3n_C) + 3(n_C+n_S)e^{-4t/3} \Big) \\
+  &=  L\big(t; n_S-1, n_C-1\big) \Big( 4(n_S-3n_C)e^{-4t/3} + 12(n_C+n_S)e^{-8t/3} \Big)
+\end{align}
+
+The derivative of this expression $f^\prime(t)$ is:
+\begin{align}
+f^\prime(t) =& \frac{d}{dt} \bigg\{ L\big(t; n_S-1, n_C-1\big) \Big( 4(n_S-3n_C)e^{-4t/3} + 12(n_C+n_S)e^{-8t/3} \Big) \bigg\} \\
+  =& \frac{d}{dt} \bigg\{ L\big(t; n_S-1, n_C-1\big) \bigg\} \Big( 4(n_S-3n_C)e^{-4t/3} + 12(n_C+n_S)e^{-8t/3} \Big) + \\
+  &L\big(t; n_S-1, n_C-1\big) \frac{d}{dt} \bigg\{\Big( 4(n_S-3n_C)e^{-4t/3} + 12(n_C+n_S)e^{-8t/3} \Big) \bigg\} \\
+  =& f(t; n_S-1, n_C-1) \Big( 4(n_S-3n_C)e^{-4t/3} + 12(n_C+n_S)e^{-8t/3} \Big) + \\
+  &L\big(t; n_S-1, n_C-1\big) \Big( \frac{-16}{3}(n_S-3n_C)e^{-4t/3} + \frac{-96}{3}(n_C+n_S)e^{-8t/3} \Big) \\
+\end{align}
+
+
+\begin{align}
+f(t) &= \frac{d}{dt}\bigg\{ 5\log\big(3 - 3 e^{-4t/3} \big) +  25\log\big(1 + 3 e^{-4t/3} \big) \bigg\}\\
+  &= 5 \frac{1}{3 - 3 e^{-4t/3}} 4e^{-4t/3} +  25 \frac{1}{1 + 3 e^{-4t/3}} -4e^{-4t/3} \\
+  &= \frac{20e^{-4t/3}}{3 - 3 e^{-4t/3}} + \frac{-100e^{-4t/3}}{1 + 3 e^{-4t/3}} \\
+  &= 20e^{-4t/3} \bigg( \frac{1}{3 - 3 e^{-4t/3}} + \frac{-5}{1 + 3 e^{-4t/3}} \bigg) \\
+\end{align}
+
+The derivative of this expression $f^\prime(t)$ is:
+\begin{align}
+f^\prime(t) &= \frac{d}{dt} \bigg\{ 20e^{-4t/3} \bigg( \frac{1}{3 - 3 e^{-4t/3}} + \frac{-5}{1 + 3 e^{-4t/3}} \bigg) \bigg\} \\
+  &= -\frac{4}{3} f(t) + 20e^{-4t/3} \Bigg( \frac{-4e^{-4t/3}}{\big(3 - 3 e^{-4t/3}\big)^2} + \frac{-20 e^{-4t/3}}{\big(1 + 3 e^{-4t/3}\big)^2} \Bigg) \\
+  &= -\frac{4}{3} f(t) - 80e^{-8t/3} \Bigg( \frac{1}{\big(3 - 3 e^{-4t/3}\big)^2} + \frac{5}{\big(1 + 3 e^{-4t/3}\big)^2} \Bigg)
+\end{align}
+
+Newton's method has the form $x_{k+1} = x_k - \frac{f(x_k)}{f^\prime(x_k)}$.
+
+```{r}
+L <- function(t, ns, nc) {
+  val <- (3-3*exp(-4/3*t))^ns * (1+3*exp(-4/3*t))^nc
+  return(val)
+}
+
+f <- function(t, ns, nc) {
+  val <- L(t, ns-1, nc-1) * (4*(ns-3*nc)*exp(-4/3*t) + 12*(nc+ns)*(exp(-8/3*t)))
+  return(val)
+}
+
+fprime <- function(t, ns, nc) {
+  val <- L(t, ns-1, nc-1) * (-16/3*(ns-3*nc)*exp(-4/3*t) + -96/3*(nc+ns)*(exp(-8/3*t)))
+  val <- val + f(t, ns-1, nc-1) * (4*(ns-3*nc)*exp(-4/3*t) + 12*(nc+ns)*(exp(-8/3*t)))
+  return(val)
+}
+
+findRootNewton <- function(x0=10, ns=5, nc=25, threshold=.005) {
+  error <- 1
+  val <- x0
+  counter <- 0
+  while(error >= threshold) {
+    tmp <- f(val, ns, nc) / fprime(val, ns, nc)
+    error <- abs(tmp)
+    val <- val - tmp
+    counter <- counter + 1
+  }
+  return(list(root=val, steps=counter))
+}
+```
+
+Look at the distribution to get a sense where the root might be.
+
+```{r}
+ns <- 5
+nc <- 25
+t <- seq(0,1,.005)
+qplot(t, L(t, ns, nc), geom="line")
+qplot(t, f(t, ns, nc), geom="line")
+qplot(t, fprime(t, ns, nc), geom="line")
+```
+
+There is a root in $f(t)$ near $0.2$. It corresponds to a negative value in
+$f^\prime(t)$, meaning that it is a maximum for $L(t)$.
+
+
+```{r}
+x0 <- .2
+res <- findRootNewton(x0, ns, nc)
+res$root
+res$steps
+```
 
 
 # Problem 5
 
-Implement the Gram-Schmidt process for QR decomposition, including a function
+*Implement the Gram-Schmidt process for QR decomposition, including a function
 that can check whether the resulting basis vectors are orthonormal. Please give
-an example with input and output.
+an example with input and output.*
+
+```{r}
+gramschmidtQR <- function(A) {
+  print("This algorithm sucks.")
+  m <- dim(A)[1]
+  n <- dim(A)[2]
+  Q <- matrix(0, nrow=m, ncol=n)
+  R <- matrix(0, nrow=n, ncol=n)
+  for (j in 1:n) {
+    v <- A[,j]
+    for (i in 1:j) {
+      R[i,j] <- Q[,i] %*% A[,j]
+      v <- v - R[i,j] * Q[,i]
+    }
+    R[j,j] <- norm(v, type="2")
+    Q[,j] <- v / R[j,j]
+  }
+  print("Again, this algorithm sucks.")
+  return(list(Q=Q, R=R))
+}
+```
+
+```{r}
+m <- 10
+n <- 8
+
+A <- matrix(rnorm(m*n), nrow=m, ncol=n)
+res <- gramschmidtQR(A)
+
+res$Q
+res$R
+
+# Check that the Q and R are correct.
+all.equal(A, res$Q %*% res$R)
+```
+
+
+Also, Gram-Schmidt kinda sucks. Givens and Householder reflections are better
+conditioned. Implemented below:
+
+
+To check whether the matrix $Q$ is orthonormal, check that that $Q^T Q = I$,
+where $I$ is the identity matrix. The `all.equal` function is used to add
+tolerance for rounding error that could make $Q^T Q$ not exactly equal to $I$.
+
+```{r}
+isOrthonormal <- function(Q) {
+  if (all.equal(diag(dim(A)[2]), t(res$Q) %*% res$Q)) {
+    return(TRUE)
+  } else {
+    return(FALSE)
+  }
+}
+```
+
+```{r}
+isOrthonormal(res$Q)
+```
