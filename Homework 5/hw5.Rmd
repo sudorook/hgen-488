@@ -4,7 +4,6 @@ author: Ansel George
 fontsize: 11pt
 output:
   pdf_document:
-    latex_engine: xelatex
     highlight: kate
 ---
 
@@ -24,29 +23,42 @@ error in the function value due to a perturbation $h$ in the argument $x$.*
 
 *Estimate the absolute error and the relative error in evaluating $\sin(x)$.*
 
-The Taylor series for $\sin(x)$ is:
+Using a 1st order approximation for $\sin(x)$:
+
+**Absolute error:**
 
 \begin{align}
-\sin(x) &= \sin(0) + \cos(0) \frac{x}{1!} - \sin(0) \frac{x^2}{2!} - \cos(0) \frac{x^3}{3!} + \sin(0) \frac{x^4}{4!} + \dots \\
-  &= x - \frac{x^3}{3!} + \frac{x^5}{5!} - \frac{x^7}{7!} + \dots
+f(x+h) &= f(x) + hf^\prime(x) \\
+\implies f(x+h) - f(x) &= h f^\prime(x) \\
+\implies \mathrm{Abs Err}\big(\sin(x)\big) &= h \cos(x)
 \end{align}
+
+**Relative error:**
 
 \begin{align}
-\sin(x-h) &= \sin(h) + \cos(h) \frac{x-h}{1!} + -\sin(h) \frac{(x-h)^2}{2!} + -\cos(h) \frac{(x-h)^3}{3!} + \sin(h) \frac{(x-h)^4}{4!} + \dots \\
+\mathrm{Rel Err} &= \frac{\mathrm{Abs Err}}{f(x)} \\
+\implies \mathrm{Rel Err}\big(\sin(x)\big) &= \frac{h\cos(x)}{\sin(x)} \\
+  &= h\cot(x)
 \end{align}
 
+If one does not want to compute error based on a 1st order approximation, one
+can instead use trigonometric identities to obtain expressions, though they are
+more difficult to interpret.
 
 Perturbing $\sin(x)$ by small value $h$ can be expressed as:
+
 \begin{align}
 \sin(x+h) &= \sin(x)\cos(h) + \cos(x)\sin(h)
 \end{align}
 
-The absolute error is:
+**Absolute error:**
+
 \begin{align}
 \sin(x+h) - \sin(x) = \sin(x) (cos(h) - 1) + \cos(x)\sin(h)
 \end{align}
 
-The relative error is:
+**Relative error:**
+
 \begin{align}
 \frac{\sin(x+h) - \sin(x)}{\sin(x)} = cos(h) - 1 + \cot(x)\sin(h)
 \end{align}
@@ -72,12 +84,6 @@ As $h \rightarrow 0$:
   &= \left| x \cot(x) \right|
 \end{align}
 
-\begin{align}
-\frac{\left| \Delta y / y \right|}{\left| \Delta x / x \right|} &= \frac{\left| \big( \sin(x+h) - \sin(x) \big)/\sin(x) \right| }{\left| (x + h - x)/x \right|} \\
-  &= \frac{ \left| \big( \sin(x)\cos(h) + \cos(x)\sin(h) - \sin(x) \big) / \sin(x) \right| }{ \left| (x+ h - x)/x \right| } \\
-  &= \frac{ \left| \cos(h) + \cot(x)\sin(h) - 1 \right| }{ \left| h/x \right| }
-\end{align}
-
 The $\cot(x)$ function, which is the $\frac{\cos(x)}{\sin(x)}$, has poles where
 $\sin(x) = 0$, specifically when $x = 0, \pi, 2\pi, 3\pi, \dots$.
 
@@ -92,22 +98,20 @@ computers. You can read about it in Heath’s Scientific Computing book section
 series: $e^x = 1 + x + x^2 /2! + x^3 /3! + \dots$.*
 
 ```{r}
-awfulExp <- function(x, threshold=.005) {
+awfulExp <- function(x, threshold=.0005) {
   val <- rep(0, length(x))
-
-  sgn <- -1*(x<0) + 1*(x>0)
-  x <- abs(x)
 
   for (i in 1:length(val)) {
     counter <- 0
     error <- 1
-    while(abs(error) >= threshold) {
-      error <- x[i]^counter / factorial(counter)
+    while(error >= threshold) {
+      tmp <- x[i]^counter / factorial(counter)
       counter <- counter + 1
-      val[i] <- val[i] + error
+      val[i] <- val[i] + tmp
+      error <- abs(tmp / val[i])
     }
   }
-  return(val^sgn)
+  return(val)
 }
 ```
 
@@ -115,6 +119,34 @@ awfulExp <- function(x, threshold=.005) {
 ## a)
 *Summing in the natural order, what stopping criterion should you use?*
 
+The remainder for a truncated Taylor expansion has the lower bound:
+
+\begin{align}
+R_n &= \frac{f^{(n+1)}(\xi)}{(n+1)!}(x-h)^{n+1}
+\end{align}
+
+for some $\xi$ such that $h \leq \xi \leq x$. For $f(x) = e^x$ evaluated at
+$x=0$, this becomes:
+
+\begin{align}
+R_n &= \frac{1}{(n+1)!}h^{n+1}
+\end{align}
+
+If the desired error tolerance for the computation is $\epsilon_s$ for a given
+$x$, then stop the iterations when $\epsilon_s \geq \epsilon_a$, where
+$\epsilon_a$ is approximation error measured as:
+
+\begin{align}
+\epsilon_a &= \left| \frac{h^{n+1}/(n+1)!}{1 + h + h^2 /2! + h^3 /3! + \dots + h^{n+1}/(n+1)!} \right|
+\end{align}
+
+The numerator is the $n+1$th term in the iteration, and the denominator is the
+total sum up to that point. The stopping criterion is when $\epsilon_s \geq
+\epsilon_a$.
+
+In practical terms, continue adding higher order terms to the approximation
+until $\epsilon_a < \epsilon_s$, meaning that the value for the $n$th term in
+the iteration is less than the predefined tolerance.
 
 
 ## b)
@@ -154,7 +186,8 @@ qplot(x, abs(exp(x) - awfulExp(x))/ abs(exp(x)), xlab="x", ylab="relative error"
 $e^{-x} = 1/e^x$.)*
 
 If the supplied value is negative, cancellation problems can arise from simply
-summing across terms from the Taylor expansion.
+summing across terms from the Taylor expansion because it involves summation of
+small positive and negative values that cancel.
 
 
 ## d)
@@ -163,6 +196,32 @@ accurate results for $x < 0$?*
 
 One can compute the exponential for the negated value (double negative ->
 positive) and then invert the final result.
+
+```{r}
+betterExp <- function(x, threshold=.0005) {
+  val <- rep(0, length(x))
+
+  sgn <- -1*(x<0) + 1*(x>0)
+  x <- abs(x)
+
+  for (i in 1:length(val)) {
+    counter <- 0
+    error <- 1
+    while(abs(error) >= threshold) {
+      tmp <- x[i]^counter / factorial(counter)
+      counter <- counter + 1
+      val[i] <- val[i] + tmp
+      error <- abs(tmp / val[i])
+    }
+  }
+  return(val^sgn)
+}
+```
+
+```{r}
+x <- c(1, -1, 5, -5, 10, -10, 15, -15, 20, -20)
+qplot(x, abs(exp(x) - betterExp(x))/ abs(exp(x)), xlab="x", ylab="relative error")
+```
 
 
 # Problem 3
@@ -180,9 +239,24 @@ schemes for solving this problem using the starting point $x_0 = 3$:*
 determine analytically whether it's locally convergent and its expected
 convergence rate, and then implement the method to confirm your result.)*
 
+Visualize the function:
+
+```{r}
+f <- function(x) {
+  return(cos(x) + 1/(1+exp(-2*x)))
+}
+```
+
+```{r}
+x <- seq(0, 5, .01)
+qplot(x, f(x), geom="line")
+```
+
+
 ## a) $x_{k+1} = \arccos \big( -\frac{1}{1 + e^{-2x_k}} \big)$
 
 Rearranging the equation:
+
 \begin{align}
 &\cos(x) + 1/(1 + e^{-2x}) = 0 \\
 \implies &\cos(x) = -1/(1 + e^{-2x}) \\
@@ -195,17 +269,19 @@ x_{k+1} &= \arccos(-1/(1 + e^{-2x_k})) \\
   &= g(x_k)
 \end{align}
 
+This is a fixed point iteration.
+
 ### Theoretical
 
 The derivative of $g(x_k)$ is:
 
 \begin{align}
 g^\prime(x) &= \frac{\partial}{\partial x} \arccos\Big(\frac{-1}{1 + e^{-2x_k}}\Big) \\
-  &= -\bigg( 1 - \frac{1}{(1 + e^{-2x_k})^2} \bigg)^{-\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{(1 + e^{-2x_k})^2}\bigg) \\
-  &= -\bigg( \frac{(1 + e^{-2x_k})^2 - 1}{(1 + e^{-2x_k})^2} \bigg)^{-\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{(1 + e^{-2x_k})^2}\bigg) \\
-  &= -\bigg( \frac{1}{(1 + e^{-2x_k})^2 - 1} \bigg)^{\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{1 + e^{-2x_k}}\bigg) \\
-  &= -\bigg( \frac{1}{\big( (1 + e^{-2x_k}) + 1 \big) \big(  (1 + e^{-2x_k}) - 1 \big)} \bigg)^{\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{1 + e^{-2x_k}}\bigg) \\
-  &= -\bigg( \frac{1}{2 + e^{-2x_k}} \bigg)^{\frac{1}{2}} \bigg(\frac{2e^{-x_k}}{1 + e^{-2x_k}}\bigg) \\
+  &= -\bigg( 1 - \frac{1}{(1 + e^{-2x_k})^2} \bigg)^{-\frac{1}{2}}  \bigg(\frac{-2e^{-2x_k}}{(1 + e^{-2x_k})^2}\bigg) \\
+  &= \bigg( \frac{(1 + e^{-2x_k})^2 - 1}{(1 + e^{-2x_k})^2} \bigg)^{-\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{(1 + e^{-2x_k})^2}\bigg) \\
+  &= \bigg( \frac{1}{(1 + e^{-2x_k})^2 - 1} \bigg)^{\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{1 + e^{-2x_k}}\bigg) \\
+  &= \bigg( \frac{1}{\big( (1 + e^{-2x_k}) + 1 \big) \big(  (1 + e^{-2x_k}) - 1 \big)} \bigg)^{\frac{1}{2}}  \bigg(\frac{2e^{-2x_k}}{1 + e^{-2x_k}}\bigg) \\
+  &= \bigg( \frac{1}{2 + e^{-2x_k}} \bigg)^{\frac{1}{2}} \bigg(\frac{2e^{-x_k}}{1 + e^{-2x_k}}\bigg)
 \end{align}
 
 The slope of the derivative is less than 1 for all $x$, meaning that the
@@ -213,44 +289,72 @@ iterative algorithm will converge on the root. At $x_0 = 3$, the derivative
 evaluates to:
 
 ```{r}
--(1/(2 + exp(-2*3)))^.5 * (2*exp(-3)/(1+exp(-2*3)))
+(1/(2 + exp(-2*3)))^.5 * (2*exp(-3)/(1+exp(-2*3)))
+```
+
+The slope can be visualized as follows:
+
+```{r}
+g1 <- function(x) {
+  return(acos(-1 / (1+exp(-2*x))))
+}
+
+g1prime <- function(x) {
+  return((1/(2 + exp(-2*x)))^.5 * (2*exp(-x)/(1+exp(-2*x))))
+}
 ```
 
 ```{r}
 x <- seq(2.5, 3.5, .001)
-qplot(x, acos(-1 / (1+exp(-2*x))), geom="line", ylab="f(x)")
-qplot(x, -(1/(2 + exp(-2*x)))^.5 * (2*exp(-x)/(1+exp(-2*x))), geom="line", ylab="df/dx")
+qplot(x, g1(x), geom="line", ylab="g(x)")
+qplot(x, g1prime(x), geom="line", ylab="dg/dx")
 ```
 
-
-\begin{align}
-\left| f^\prime(x^*) \right| &= -\sin(x) - \frac{1}{(1 + e^{-2x})^2}(-2e^{-2x}) \\
-  &= -\sin(x) + \frac{2e^{-2x}}{(1 + e^{-2x})^2}
-\end{align}
+Assuming linear convergence and that root is close to the starting point $x_0 =
+3$, the convergence rate will approximately be $g^\prime(3) \approx 0.07019197$
 
 
 ### Empirical
 
 ```{r}
-findRootv1 <- function(x0=3, threshold=.005) {
+findRootv1 <- function(x0=3, threshold=0.000005, xtrue=NA) {
   error <- 1
   val <- x0
   counter <- 0
+  if (!is.na(xtrue)) {
+    print("---True error---")
+  }
   while(error >= threshold) {
-    tmp <- acos(-1 / (1+exp(-2*val)))
-    error <- abs(val - tmp)
+    tmp <- acos(-1/(1+exp(-2*val)))
+    # error <- abs(val - tmp)
+    error <- abs( (val-tmp) / tmp )
     val <- tmp
     counter <- counter + 1
+    if (!is.na(xtrue)) {
+      print(paste("Step ", counter, ": ", abs(val - xtrue) / xtrue, sep=""))
+    }
   }
   return(list(root=val, steps=counter))
 }
 ```
 
 ```{r}
-res1 <- findRootv1(3)
+res1 <- findRootv1(3, xtrue=3.076421)
 res1$root
 res1$steps
 ```
+
+```{r}
+error <- c(0.00167899317266081, 0.000109460173963121, 7.07247533905157e-06,
+           4.10335514846105e-07, 2.30827809323527e-08)
+x <- seq(1, length(error))
+d <- data.frame(error=error, step=x)
+ggplot(d, aes(x, log(error)), log="y") +
+  geom_point() + geom_smooth(method='lm', formula=y~x)
+```
+
+The error ratios is consistent with linear convergence with rate $\approx
+0.0609318$, based on a linear regression on the $\log(error)$ values.
 
 
 ## b) $x_{k+1} = 0.5 \log \big( -\frac{1}{1 + \cos^{-1}(x_k)} \big)$
@@ -276,8 +380,8 @@ Converting the expression to an iteration yields:
 The derivative of $g(x_k)$ is:
 
 \begin{align}
-g^\prime(x) &= \frac{\partial}{\partial x} 0.5 \log \bigg( -\frac{1}{1 + \cos^{-1}(x_k)} \bigg) \\
-  &= \frac{\partial}{\partial x} -0.5 \log \big( -1 - \cos^{-1}(x_k) \big) \\
+g^\prime(x) &= \frac{d}{d x} 0.5 \log \bigg( -\frac{1}{1 + \cos^{-1}(x_k)} \bigg) \\
+  &= \frac{d}{d x} -0.5 \log \big( -1 - \cos^{-1}(x_k) \big) \\
   &= -0.5 \bigg( \frac{1}{\cos^{-1}(x) + 1} \bigg) \tan(x)\sec(x) \\
   &= -0.5 \bigg( \frac{\tan(x)\sec(x)}{\sec(x) + 1} \bigg)
 \end{align}
@@ -287,39 +391,52 @@ starting point, $x_0=3$, is close to this pole, and evaluating the derivative
 that that point yields:
 
 ```{r}
-# -.5*(tan(3)/cos(3)^2 + tan(3)/cos(3))
 -.5*(tan(3)/cos(3) / (1/cos(3) + 1))
 ```
 
 The magnitude of the slope is much larger than 1, so the iterative algorithm at
 that point will diverge.
 
+```{r}
+g2 <- function(x) {
+  return(.5 * log( -1 / (1 + 1/cos(x))))
+}
+
+g2prime <- function(x) {
+  return(-.5*(tan(x)/cos(x) / (1/cos(x) + 1)))
+}
+```
 
 ```{r}
 x <- seq(2.5, 3.5, .005)
-qplot(x, .5 * log( -1 / (1 + 1/cos(x))), ylab="f(x)", geom="line")
-# qplot(x, -.5*(tan(x)/cos(x)^2 + tan(x)/cos(x)), geom="line")
-qplot(x, -.5*(tan(x)/cos(x) / (1/cos(x) + 1)), ylab="df/dx", geom="line")
+qplot(x, g2(x), ylab="g(x)", geom="line")
+qplot(x, g2prime(x), ylab="dg/dx", geom="line")
 ```
 
 ### Empirical
 
 ```{r}
-findRootv2 <- function(x0=3, threshold=.005) {
+findRootv2 <- function(x0=3, threshold=0.000005, xtrue=NA) {
   error <- 1
   val <- x0
   counter <- 0
+  if (!is.na(xtrue)) {
+    print("---True error---")
+  }
   while(error >= threshold) {
     tmp <- .5 * log( -1 / (1 + 1/cos(val)) )
-    error <- abs(val - tmp)
+    error <- abs( (val-tmp) / tmp )
     val <- tmp
     counter <- counter + 1
+    if (!is.na(xtrue)) {
+      print(paste("Step ", counter, ": ", abs(val - xtrue) / xtrue, sep=""))
+    }
   }
   return(list(root=val, steps=counter))
 }
 ```
 
-```{r}
+```{r, error=FALSE, ignore=TRUE}
 # res2 <- findRootv2(3)
 # res2$root
 # res2$steps
@@ -329,16 +446,26 @@ findRootv2 <- function(x0=3, threshold=.005) {
 ## c) Newton's Method
 
 The derivative of the nonlinear equation is:
+
 \begin{align}
--\sin(x) + \frac{2e^{-2x}}{\big(1+ e^{-2x}\big)^2}
+f^\prime(x) &= -\sin(x) - \frac{1}{(1 + e^{-2x})^2}(-2e^{-2x}) \\
+  &= -\sin(x) + \frac{2e^{-2x}}{(1 + e^{-2x})^2}
+\end{align}
+
+The second derivative is:
+
+\begin{align}
+f^{\prime\prime}(x) &= -\cos(x) + \frac{-(1 + e^{-2x})^2 4e^{-2x} + 2e^{-2x}2(1 + e^{-2x})2e^{-2x} }{(1 + e^{-2x})^4} \\
+  &= -\cos(x) + \frac{-(1 + e^{-2x}) 4e^{-2x} + 8e^{-2x}e^{-2x} }{(1 + e^{-2x})^3} \\
+  &= -\cos(x) + \frac{-4e^{-2x} - 4e^{-4x} + 8e^{-4x}}{(1 + e^{-2x})^3} \\
+  &= -\cos(x) + \frac{-4e^{-2x} (1 - e^{-2x})}{(1 + e^{-2x})^3} \\
 \end{align}
 
 Newton's method, which is an iterative algorithm of the form $x_{k+1} =
 x_k - \frac{f(x_k)}{f^\prime(x_k)}$.
 
-### Theoretical
 
-### Empirical
+### Theoretical
 
 ```{r}
 f <- function(x) {
@@ -349,26 +476,65 @@ fprime <- function(x) {
   return(-sin(x) + 2*exp(-2*x)/(1+exp(-2*x))^2)
 }
 
-findRootNewton <- function(x0=3, threshold=.005) {
+fprimeprime <- function(x) {
+  return(-cos(x) - 4*exp(-2*x)*(1-exp(-2*x))/(1+exp(-2*x))^3)
+}
+```
+
+```{r}
+x <- seq(2.5, 3.5, .005)
+qplot(x, f(x), ylab="f(x)", geom="line")
+qplot(x, fprime(x), ylab="df/dx", geom="line")
+```
+
+
+### Empirical
+
+```{r}
+findRootNewton <- function(x0=3, threshold=.000005, xtrue=NA) {
   error <- 1
   val <- x0
   counter <- 0
+  if (!is.na(xtrue)) {
+    print("---True error---")
+  }
   while(error >= threshold) {
     tmp <- f(val) / fprime(val)
-    error <- abs(tmp)
     val <- val - tmp
+    error <- abs(tmp/val)
     counter <- counter + 1
+    if (!is.na(xtrue)) {
+      print(paste("Step ", counter, ": ", abs(val - xtrue) / xtrue, sep=""))
+    }
   }
   return(list(root=val, steps=counter))
 }
 ```
 
 ```{r}
-res3 <- findRootNewton(3)
+res3 <- findRootNewton(3, xtrue=3.076421)
 res3$root
 res3$steps
 ```
 
+```{r}
+error <- c(0.00685651924068932, 0.00087418595598904, 1.82483540740937e-05,
+           4.48766664017057e-08, 5.32413324243922e-08)
+x <- seq(1, length(error))
+d <- data.frame(error=error, step=x)
+ggplot(d, aes(x, log(error)), log="y") +
+  geom_point() + geom_smooth(method='lm', formula=y~x)
+```
+
+Convergence here is inconsistent but appears less than quadratic.
+```{r}
+-fprimeprime(3)/fprime(3)/2
+error[2:length(error)] / (error[1:(length(error)-1)])^2
+error[2:length(error)] / (error[1:(length(error)-1)])
+```
+
+The error ratio for each iteration and the previous one is not consistent with
+a quadratic convergence but more consistent with (but not exactly) linear.
 
 
 # Problem 4
@@ -403,7 +569,8 @@ the likelihood. This corresponds to points where the derivative of the
 likelihood (or log-likelihood) is 0. These roots can be found by Newton's
 method.
 
-Let $f(t)$ be the derivative of $L(t;n_S=5,n_C=25)$:
+Let $f(t)$ be proportional to the derivative of $L(t;n_S,n_C)$:
+
 \begin{align}
 f(t) &= \frac{d}{dt}\bigg\{ \big(3 - 3 e^{-4t/3} \big)^{n_S}  \big(1 + 3 e^{-4t/3} \big)^{n_C}\bigg\}\\
   &= n_S \big(3 - 3 e^{-4t/3} \big)^{n_S-1} 4e^{-4t/3} \big(1+3e^{-4t/3} \big)^{n_C} + \big(3-3e^{-4t/3} \big)^{n_S} n_C\big(1+3e^{-4t/3} \big)^{n_C-1} -4e^{-4t/3} \\
@@ -418,58 +585,53 @@ f^\prime(t) =& \frac{d}{dt} \bigg\{ L\big(t; n_S-1, n_C-1\big) \Big( 4(n_S-3n_C)
   =& \frac{d}{dt} \bigg\{ L\big(t; n_S-1, n_C-1\big) \bigg\} \Big( 4(n_S-3n_C)e^{-4t/3} + 12(n_C+n_S)e^{-8t/3} \Big) + \\
   &L\big(t; n_S-1, n_C-1\big) \frac{d}{dt} \bigg\{\Big( 4(n_S-3n_C)e^{-4t/3} + 12(n_C+n_S)e^{-8t/3} \Big) \bigg\} \\
   =& f(t; n_S-1, n_C-1) \Big( 4(n_S-3n_C)e^{-4t/3} + 12(n_C+n_S)e^{-8t/3} \Big) + \\
-  &L\big(t; n_S-1, n_C-1\big) \Big( \frac{-16}{3}(n_S-3n_C)e^{-4t/3} + \frac{-96}{3}(n_C+n_S)e^{-8t/3} \Big) \\
-\end{align}
-
-
-\begin{align}
-f(t) &= \frac{d}{dt}\bigg\{ 5\log\big(3 - 3 e^{-4t/3} \big) +  25\log\big(1 + 3 e^{-4t/3} \big) \bigg\}\\
-  &= 5 \frac{1}{3 - 3 e^{-4t/3}} 4e^{-4t/3} +  25 \frac{1}{1 + 3 e^{-4t/3}} -4e^{-4t/3} \\
-  &= \frac{20e^{-4t/3}}{3 - 3 e^{-4t/3}} + \frac{-100e^{-4t/3}}{1 + 3 e^{-4t/3}} \\
-  &= 20e^{-4t/3} \bigg( \frac{1}{3 - 3 e^{-4t/3}} + \frac{-5}{1 + 3 e^{-4t/3}} \bigg) \\
-\end{align}
-
-The derivative of this expression $f^\prime(t)$ is:
-\begin{align}
-f^\prime(t) &= \frac{d}{dt} \bigg\{ 20e^{-4t/3} \bigg( \frac{1}{3 - 3 e^{-4t/3}} + \frac{-5}{1 + 3 e^{-4t/3}} \bigg) \bigg\} \\
-  &= -\frac{4}{3} f(t) + 20e^{-4t/3} \Bigg( \frac{-4e^{-4t/3}}{\big(3 - 3 e^{-4t/3}\big)^2} + \frac{-20 e^{-4t/3}}{\big(1 + 3 e^{-4t/3}\big)^2} \Bigg) \\
-  &= -\frac{4}{3} f(t) - 80e^{-8t/3} \Bigg( \frac{1}{\big(3 - 3 e^{-4t/3}\big)^2} + \frac{5}{\big(1 + 3 e^{-4t/3}\big)^2} \Bigg)
+  &L\big(t; n_S-1, n_C-1\big) \Big( \frac{-16}{3}(n_S-3n_C)e^{-4t/3} + \frac{-96}{3}(n_C+n_S)e^{-8t/3} \Big)
 \end{align}
 
 Newton's method has the form $x_{k+1} = x_k - \frac{f(x_k)}{f^\prime(x_k)}$.
 
 ```{r}
+# likelihood of binomial distribution
 L <- function(t, ns, nc) {
   val <- (3-3*exp(-4/3*t))^ns * (1+3*exp(-4/3*t))^nc
   return(val)
 }
 
+# 1st derivative f(t) of the likelihood
 f <- function(t, ns, nc) {
   val <- L(t, ns-1, nc-1) * (4*(ns-3*nc)*exp(-4/3*t) + 12*(nc+ns)*(exp(-8/3*t)))
   return(val)
 }
 
+# 2nd derivative of likelihood f'(t)
 fprime <- function(t, ns, nc) {
   val <- L(t, ns-1, nc-1) * (-16/3*(ns-3*nc)*exp(-4/3*t) + -96/3*(nc+ns)*(exp(-8/3*t)))
   val <- val + f(t, ns-1, nc-1) * (4*(ns-3*nc)*exp(-4/3*t) + 12*(nc+ns)*(exp(-8/3*t)))
   return(val)
 }
 
+# Modified Newton-Raphson root finder that will pass the ns, nc parameters to
+# the likelihood functions.
 findRootNewton <- function(x0=10, ns=5, nc=25, threshold=.005) {
   error <- 1
   val <- x0
   counter <- 0
   while(error >= threshold) {
     tmp <- f(val, ns, nc) / fprime(val, ns, nc)
-    error <- abs(tmp)
     val <- val - tmp
+    error <- abs(tmp/val)
     counter <- counter + 1
   }
   return(list(root=val, steps=counter))
 }
 ```
 
-Look at the distribution to get a sense where the root might be.
+Because the Newton-Raphson method has limitations in that it does not guarantee
+which root is found and does can get caught searching for extrema since the
+likelihood function tails asymptotically to 0, visually look at the likelihood
+to determine where a root of f(t) might be that could correspond to the MLE
+estimate.
+
 
 ```{r}
 ns <- 5
@@ -480,14 +642,13 @@ qplot(t, f(t, ns, nc), geom="line")
 qplot(t, fprime(t, ns, nc), geom="line")
 ```
 
-There is a root in $f(t)$ near $0.2$. It corresponds to a negative value in
-$f^\prime(t)$, meaning that it is a maximum for $L(t)$.
-
+There is a single root in $f(t)$ near $0.2$. It corresponds to a negative value
+in $f^\prime(t)$, meaning that it is a maximum and therefore a MLE for $L(t)$.
 
 ```{r}
 x0 <- .2
-res <- findRootNewton(x0, ns, nc)
-res$root
+res <- findRootNewton(x0, ns, nc, threshold=0.000005)
+print(paste(res$root))
 res$steps
 ```
 
@@ -500,7 +661,6 @@ an example with input and output.*
 
 ```{r}
 gramschmidtQR <- function(A) {
-  print("This algorithm sucks.")
   m <- dim(A)[1]
   n <- dim(A)[2]
   Q <- matrix(0, nrow=m, ncol=n)
@@ -514,7 +674,6 @@ gramschmidtQR <- function(A) {
     R[j,j] <- norm(v, type="2")
     Q[,j] <- v / R[j,j]
   }
-  print("Again, this algorithm sucks.")
   return(list(Q=Q, R=R))
 }
 ```
@@ -532,11 +691,6 @@ res$R
 # Check that the Q and R are correct.
 all.equal(A, res$Q %*% res$R)
 ```
-
-
-Also, Gram-Schmidt kinda sucks. Givens and Householder reflections are better
-conditioned. Implemented below:
-
 
 To check whether the matrix $Q$ is orthonormal, check that that $Q^T Q = I$,
 where $I$ is the identity matrix. The `all.equal` function is used to add
