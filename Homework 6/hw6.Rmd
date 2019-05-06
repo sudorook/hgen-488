@@ -1,0 +1,39 @@
+---
+title: Homework 6
+author: Ansel George
+output: 
+    pdf_document:
+        highlight: kate
+fontsize: 11pt
+---
+
+# Dantzig selector
+
+\begin{align*}
+\min_\beta \sum^p_{j=1} |\beta_j| \textrm{ st. } |y_i - x_t^T \beta | \leq \lambda \textrm{ for } i=1,\dots,n
+\end{align*}
+
+* Recast the problem into a linear programming.
+
+* Use R interface of a linear programming solver (such as `rmosek`, `cplex`,
+  `Rglpk`, `clpAPI`).
+
+* Follow the examples in Convex demo.pdf.
+
+
+# Markowitz portfolio optimization
+
+Suppose there are $p$ assets held over a fixed period and let $\beta_j$ denote
+the amount invested in the $j$-th asset. Let $R$ be a $p$-variate random
+variable denoting the relative price change of each asset. We assume $R$ has
+mean $\mu_R$ and covariance $\Sigma_R$.
+
+\begin{align*}
+\min{\beta} \textrm{ st. } &\beta^T \Sigma_R \beta \\
+  &\beta^T \mu_R \geq 1 \\
+  &1^T \beta = 1 \\
+  &\beta \geq 0
+\end{align*}
+
+Can you implement Markowitz portfolio optimization using R interface of a
+quadratic programming solver?
