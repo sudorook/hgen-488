@@ -7,7 +7,7 @@ output:
 fontsize: 11pt
 ---
 
-```{r}
+```{r, message=F}
 library(Rglpk)
 library(quadprog)
 
@@ -22,7 +22,7 @@ set.seed(10)
 \min_{\boldsymbol\beta} \norm{\boldsymbol\beta}_1 \textrm{ st. } |\boldsymbol{y}_i - \boldsymbol{x}_i^T \boldsymbol\beta | \leq \lambda \textrm{ for } i=1,\dots,n
 \end{align*}
 
-* Recast the problem into a linear programming.
+## Recast the problem into a linear programming.
 
 The expression:
 
@@ -30,11 +30,11 @@ The expression:
 |\boldsymbol{y} - X\boldsymbol\beta| < \lambda \boldsymbol1
 \end{align*}
 
-can equivalently be express as the set of equalities:
+can equivalently be expressed as the set of inequalities:
 
 \begin{align*}
-\boldsymbol{y} - X\boldsymbol\beta &= \lambda \boldsymbol1 + \boldsymbol{e} \\
--\boldsymbol{y} + X\boldsymbol\beta &= \lambda \boldsymbol1 + \boldsymbol{e}
+\boldsymbol{y} - X\boldsymbol\beta &\leq \lambda \boldsymbol1 + \boldsymbol{e} \\
+-\boldsymbol{y} + X\boldsymbol\beta &\leq \lambda \boldsymbol1 + \boldsymbol{e}
 \end{align*}
 
 for some $\boldsymbol{e} \in \mathbb{R}^n$ where $\boldsymbol{e} > \boldsymbol{0}$.
@@ -42,8 +42,8 @@ for some $\boldsymbol{e} \in \mathbb{R}^n$ where $\boldsymbol{e} > \boldsymbol{0
 Rearranging:
 
 \begin{align*}
-\boldsymbol{e} + X\boldsymbol\beta &= \boldsymbol{y} - \lambda \boldsymbol1 \\
-\boldsymbol{e} - X\boldsymbol\beta &= -\boldsymbol{y} - \lambda \boldsymbol1
+\boldsymbol{e} + X\boldsymbol\beta &\geq \boldsymbol{y} - \lambda \boldsymbol1 \\
+\boldsymbol{e} - X\boldsymbol\beta &\geq -\boldsymbol{y} - \lambda \boldsymbol1
 \end{align*}
 
 which can then be converted into matrix form:
@@ -64,14 +64,27 @@ I & -X \\
 \end{bmatrix}
 \]
 
+Or:
+
+\[
+\boldsymbol{G}
+\begin{bmatrix}
+\boldsymbol{e} \\
+\boldsymbol{\beta} \\
+\end{bmatrix}
+=
+\begin{bmatrix}
+\boldsymbol{y} - \lambda\boldsymbol{1} \\
+-\boldsymbol{y} - \lambda\boldsymbol{1}
+\end{bmatrix}
+\]
+
+
 These can be formulated as a linear programming problem:
 
 \begin{align*}
-\min_{\boldsymbol\beta,\boldsymbol{e}} \norm{\boldsymbol{e}}_1 \textrm{ st. }& \boldsymbol{e} > \boldsymbol{0}\textrm{, and} \\
-&\begin{bmatrix}
-I & X \\
-I & -X \\
-\end{bmatrix}
+\min_{\boldsymbol\beta,\boldsymbol{e}} \boldsymbol1^T\boldsymbol{e} \textrm{ where }& \boldsymbol{e} > \boldsymbol{0}\textrm{, and} \\
+&\boldsymbol{G}
 \begin{bmatrix}
 \boldsymbol{e} \\
 \boldsymbol{\beta} \\
@@ -84,21 +97,19 @@ I & -X \\
 \end{align*}
 
 
-* Use R interface of a linear programming solver (such as `rmosek`, `cplex`,
+## Use R interface of a linear programming solver (such as `rmosek`, `cplex`,
   `Rglpk`, `clpAPI`).
 
-* Follow the examples in Convex demo.pdf.
+*Follow the examples in Convex demo.pdf.*
 
 ```{r}
 n <- 10
 p <- 8
 
-# lambda <- rep(10, n)
-# lambda <- rep(2, n)
 lambda <- rep(5, n)
 y <- seq(1,n)
-# X <- matrix(rnorm(n*p), ncol=p, nrow=n)
 X <- matrix(ceiling(runif(n*p, 0, 2*n))-n, ncol=p, nrow=n)
+# X <- matrix(ceiling(rnorm(n*p, 0, 5)), ncol=p, nrow=n)
 ```
 
 ```{r}
@@ -113,10 +124,41 @@ for (i in 1:n){
 
 direction <- rep (">=", 2*n)
 rhs <- c((y-lambda), -(y+lambda))
-bounds <- list(lower = list(ind=(n+1):(n+p), val <- rep(-Inf, p)))
-soln <- Rglpk_solve_LP(obj, G, direction, rhs, bounds = bounds)
+bounds <- list(lower=list(ind=(n+1):(n+p), val <- rep(-Inf, p)))
+
+soln <- Rglpk_solve_LP(obj, G, direction, rhs, bounds=bounds)
 b <- soln$solution[(n+1):(n+p)]
-sum(abs(b)) # 1-norm of b
+
+soln$status      # return status of solver
+sum(abs(b))      # 1-norm of b
+abs(y - X %*% b) # check that |y - Xb| is less than lambda
+```
+
+Again with a different matrix $X$:
+
+```{r}
+X <- matrix(ceiling(rnorm(n*p, 0, 5)), ncol=p, nrow=n)
+```
+
+```{r}
+obj <- c(rep(1, n), rep (0, p))
+G <- matrix (0, nrow = 2*n, ncol = n+p)
+for (i in 1:n){
+  G[i, i] <- 1.0
+  G[i, (n+1):(n+p)] <- X[i, ]
+  G[n+i, i] <- 1.0
+  G[n+i, (n+1):(n+p)] <- -X[i, ]
+}
+
+direction <- rep (">=", 2*n)
+rhs <- c((y-lambda), -(y+lambda))
+bounds <- list(lower=list(ind=(n+1):(n+p), val <- rep(-Inf, p)))
+
+soln <- Rglpk_solve_LP(obj, G, direction, rhs, bounds=bounds)
+b <- soln$solution[(n+1):(n+p)]
+
+soln$status      # return status of solver
+sum(abs(b))      # 1-norm of b
 abs(y - X %*% b) # check that |y - Xb| is less than lambda
 ```
 
@@ -137,7 +179,8 @@ mean $\mu_R$ and covariance $\Sigma_R$.*
 *Can you implement Markowitz portfolio optimization using R interface of a
 quadratic programming solver?*
 
-The goal is to maximize returns while minimizing variance in returns.
+The goal is to construct a portfolio with a maximum in return and minimum in
+variance in return.
 
 ```{r}
 n <- 8
@@ -156,7 +199,7 @@ rhs <- c(1, min(1, max(mu)), rep(0, p))
 soln <- solve.QP (2*X, d, t(A), rhs, meq=1)
 b <- soln$solution
 
-sum(b) # should sum to 1
+sum(b)        # should sum to 1
 b %*% X %*% b # variance in return
-b %*% mu # average return
+b %*% mu      # average return
 ```
