@@ -103,13 +103,138 @@ These can be formulated as a linear programming problem:
 *Follow the examples in Convex demo.pdf.*
 
 ```{r}
-n <- 10
-p <- 8
+n <- 20
+p <- 18
 
-lambda <- rep(5, n)
-y <- seq(1,n)
+lambda <- rep(10, n)
+y <- ceiling(runif(n, 0, 2*n))-n
 X <- matrix(ceiling(runif(n*p, 0, 2*n))-n, ncol=p, nrow=n)
-# X <- matrix(ceiling(rnorm(n*p, 0, 5)), ncol=p, nrow=n)
+```
+
+v1 (bad):
+
+```{r}
+obj <- c(rep(1, n), rep(0, p))
+G <- matrix (0, nrow = 2*n, ncol = n+p)
+for (i in 1:n){
+  G[i, i] <- 1.0
+  G[i, (n+1):(n+p)] <- X[i, ]
+  G[n+i, i] <- 1.0
+  G[n+i, (n+1):(n+p)] <- -X[i, ]
+}
+
+direction <- rep (">=", 2*n)
+rhs <- c((y-lambda), -(y+lambda))
+bounds <- list(lower=list(ind=(n+1):(n+p), val=rep(-Inf, p)))
+
+soln <- Rglpk_solve_LP(obj, G, direction, rhs, bounds=bounds)
+b <- soln$solution[(n+1):(n+p)]
+
+soln$status      # return status of solver
+sum(abs(b))      # 1-norm of b
+abs(y - X %*% b) # check that |y - Xb| is less than lambda
+# sum(abs(y - X %*% b)) # check that |y - Xb| is less than lambda
+```
+
+Define $\boldsymbol{e} > |\boldsymbol{\beta}|$, where $\boldsymbol{e} \in
+\mathbb{R}^p$ and $\boldsymbol{e} \geq \boldsymbol{0}$.
+
+The inequalities and constraints can be formulated as the following system of
+inequalities.
+
+\begin{align*}
+\boldsymbol{\beta} &\leq \boldsymbol{e} \\
+-\boldsymbol{\beta} &\leq \boldsymbol{e} \\
+\boldsymbol{y} - X\boldsymbol\beta &\leq \lambda \boldsymbol1 \\
+-\boldsymbol{y} + X\boldsymbol\beta &\leq \lambda \boldsymbol1
+\end{align*}
+
+Rearranging:
+
+\begin{align*}
+\boldsymbol{e} - \boldsymbol{\beta} &\geq 0\\
+\boldsymbol{e} + \boldsymbol{\beta} &\geq 0\\
+X\boldsymbol\beta &\geq  \boldsymbol{y} - \lambda \boldsymbol1\\
+- X\boldsymbol\beta &\geq - \lambda \boldsymbol1 - \boldsymbol{y}  \\
+\end{align*}
+
+This can be written in matrix form as:
+
+\[
+\begin{bmatrix}
+I & I \\
+I & -I \\
+0 & X \\
+0 & -X \\
+\end{bmatrix}
+\begin{bmatrix}
+\boldsymbol{e} \\
+\boldsymbol{\beta} \\
+\end{bmatrix}
+=
+\begin{bmatrix}
+0 \\
+0 \\
+\boldsymbol{y} - \lambda\boldsymbol{1} \\
+-\boldsymbol{y} - \lambda\boldsymbol{1}
+\end{bmatrix}
+\]
+
+\[
+G
+\begin{bmatrix}
+\boldsymbol{e} \\
+\boldsymbol{\beta} \\
+\end{bmatrix}
+=
+\boldsymbol{\gamma}
+\]
+
+These equations can then be used to formulate a linear programming problem:
+
+\begin{align*}
+\min_{\boldsymbol{e}} \boldsymbol1^T\boldsymbol{e} \textrm{ where }& \boldsymbol{e} > \boldsymbol{0}\textrm{, and} \\
+&\boldsymbol{G}
+\begin{bmatrix}
+\boldsymbol{e} \\
+\boldsymbol{\beta} \\
+\end{bmatrix}
+=
+\boldsymbol{\gamma}
+\end{align*}
+
+
+
+```{r}
+obj <- c(rep(1, p), rep(0, p))
+G <- matrix(0, nrow=(2*p+2*n), ncol=(2*p))
+G[1:p,1:p] <- diag(p)
+G[(p+1):(2*p),1:p] <- diag(p)
+G[(2*p+1):(2*n+2*p),1:p] <- 0
+
+G[1:p,(p+1):(2*p)] <- diag(p)
+G[(p+1):(2*p),(p+1):(2*p)] <- -diag(p)
+G[(2*p+1):(n+2*p),(p+1):(2*p)] <- X
+G[(n+2*p+1):(2*n+2*p),(p+1):(2*p)] <- -X
+
+direction <- rep(">=", (2*n+2*p))
+rhs <- c(rep(0, 2*p), (y-lambda), -(y+lambda))
+bounds <- list(lower=list(ind=(p+1):(2*p), val=rep(-Inf, p)))
+
+soln <- Rglpk_solve_LP(obj, G, direction, rhs, bounds=bounds)
+e <- soln$solution[(1):(p)]
+b <- soln$solution[(p+1):(2*p)]
+
+soln$status      # return status of solver
+sum(abs(b))      # 1-norm of b
+abs(y - X %*% b) # check that |y - Xb| is less than lambda
+```
+
+
+Again with a different matrix $X$:
+
+```{r}
+X <- matrix(ceiling(rnorm(n*p, 0, 5)), ncol=p, nrow=n)
 ```
 
 ```{r}
@@ -134,28 +259,25 @@ sum(abs(b))      # 1-norm of b
 abs(y - X %*% b) # check that |y - Xb| is less than lambda
 ```
 
-Again with a different matrix $X$:
-
 ```{r}
-X <- matrix(ceiling(rnorm(n*p, 0, 5)), ncol=p, nrow=n)
-```
+obj <- c(rep(1, p), rep(0, p))
+G <- matrix(0, nrow=(2*p+2*n), ncol=(2*p))
+G[1:p,1:p] <- diag(p)
+G[(p+1):(2*p),1:p] <- diag(p)
+G[(2*p+1):(2*n+2*p),1:p] <- 0
 
-```{r}
-obj <- c(rep(1, n), rep (0, p))
-G <- matrix (0, nrow = 2*n, ncol = n+p)
-for (i in 1:n){
-  G[i, i] <- 1.0
-  G[i, (n+1):(n+p)] <- X[i, ]
-  G[n+i, i] <- 1.0
-  G[n+i, (n+1):(n+p)] <- -X[i, ]
-}
+G[1:p,(p+1):(2*p)] <- diag(p)
+G[(p+1):(2*p),(p+1):(2*p)] <- -diag(p)
+G[(2*p+1):(n+2*p),(p+1):(2*p)] <- X
+G[(n+2*p+1):(2*n+2*p),(p+1):(2*p)] <- -X
 
-direction <- rep (">=", 2*n)
-rhs <- c((y-lambda), -(y+lambda))
-bounds <- list(lower=list(ind=(n+1):(n+p), val <- rep(-Inf, p)))
+direction <- rep(">=", (2*n+2*p))
+rhs <- c(rep(0, 2*p), (y-lambda), -(y+lambda))
+bounds <- list(lower=list(ind=(p+1):(2*p), val=rep(-Inf, p)))
 
 soln <- Rglpk_solve_LP(obj, G, direction, rhs, bounds=bounds)
-b <- soln$solution[(n+1):(n+p)]
+e <- soln$solution[(1):(p)]
+b <- soln$solution[(p+1):(2*p)]
 
 soln$status      # return status of solver
 sum(abs(b))      # 1-norm of b
