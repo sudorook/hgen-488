@@ -198,7 +198,7 @@ d <- rep(0, p)
 A <- rbind(rep(1, p), mu)
 A <- rbind(A, diag(p))
 rhs <- c(1, min(1, max(mu)), rep(0, p))
-soln <- solve.QP (2*X, d, t(A), rhs, meq=1)
+soln <- solve.QP(2*X, d, t(A), rhs, meq=1)
 b <- soln$solution
 
 sum(b)        # should sum to 1
