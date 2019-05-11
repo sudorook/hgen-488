@@ -1,0 +1,41 @@
+---
+title: Homework 7
+author: Ansel George
+output: pdf_document
+---
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ConsensusClusterPlus)
+
+set.seed(10)
+```
+
+*Find a public available mRNAseq dataset with at least 250 samples and 5000
+genes, perform consensus clustering and report your findings.*
+
+# Background
+
+**Dataset:**
+
+GSEA Class2: Canonical Pathways enriched in each subtypes of mRNAseq_cNMF in
+SKCM-TM Skin Cutaneous Melanoma (Metastatic)
+
+I would include a url, but the website uses fucking annoying JavaScript popups
+to show anything. No hard urls.
+
+
+# Data acquisition and cleanup
+
+```{bash, eval=F}
+# Download the dataset.
+./scripts/download.sh
+```
+
+The script downloads the data corresponding to 4 clusters, as defined by the
+posted analysis. One file corresponds to the significant genes, and the other
+corresponds to the fold changes for all the genes.
+
+Now, load the data and filter it to obtain a table of fold-changes for
+significant genes.
