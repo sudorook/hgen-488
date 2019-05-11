@@ -1,12 +1,20 @@
 ---
 title: Homework 7
 author: Ansel George
-output: pdf_document
+output:
+    pdf_document:
+        highlight: tango
+        latex_engine: xelatex
+fontsize: 12pt
+mainfont: Roboto
+monofont: Ubuntu Mono
 ---
 
-```{r}
+```{r, message=F}
 library(dplyr)
 library(tidyr)
+library(readr)
+
 library(ConsensusClusterPlus)
 
 set.seed(10)
@@ -17,25 +25,58 @@ genes, perform consensus clustering and report your findings.*
 
 # Background
 
-**Dataset:**
+**Dataset:** Head and Neck Squamous Cell Carcinoma (Primary solid tumor)
 
-GSEA Class2: Canonical Pathways enriched in each subtypes of mRNAseq_cNMF in
-SKCM-TM Skin Cutaneous Melanoma (Metastatic)
-
-I would include a url, but the website uses fucking annoying JavaScript popups
-to show anything. No hard urls.
+\url{http://dx.doi.org/10.7908/C1C828P8}
 
 
 # Data acquisition and cleanup
 
-```{bash, eval=F}
-# Download the dataset.
-./scripts/download.sh
+First, download the dataset.
+
+```{bash, message=F, warning=F}
+./scripts/download2.sh
 ```
 
-The script downloads the data corresponding to 4 clusters, as defined by the
-posted analysis. One file corresponds to the significant genes, and the other
-corresponds to the fold changes for all the genes.
+Cleanup the files.
 
-Now, load the data and filter it to obtain a table of fold-changes for
-significant genes.
+```{r, message=F, warning=F}
+metadata <- read_tsv('data/normalized_data.txt', col_names=F, n_max=1)
+all_data <- read_tsv('data/normalized_data.txt', skip=1)
+# colnames(all_data) <- metadata
+```
+
+```{r, message=F, warning=F}
+mad_genes <- (all_data %>%
+              gather(key, count, -gene_id) %>%
+              group_by(gene_id) %>%
+              drop_na() %>%
+              summarise(mad=mad(count)) %>%
+              arrange(desc(mad)))[1:5000,] %>% select(gene_id)
+mad_data <- data.matrix(
+              inner_join(mad_genes, all_data, by='gene_id') %>% 
+                select(-gene_id))
+```
+
+```{r}
+title <- "HNSC"
+res <- ConsensusClusterPlus(mad_data, maxK = 6, reps = 50, pItem = 0.8,
+                            pFeature = 1, title = title, clusterAlg = "hc",
+                            distance = "pearson", seed = 1262118388.71279,
+                            plot = "pdf")
+```
+
+```{r}
+res[[2]][["consensusMatrix"]][1:5, 1:5]
+
+#consensusTree - hclust object
+res[[2]][["consensusTree"]]
+
+#consensusClass - the sample classifications
+res[[2]][["consensusClass"]][1:5]
+
+icl = calcICL(res, title=title, plot="pdf")
+head(icl[["clusterConsensus"]])
+
+icl[["itemConsensus"]][1:5, ]
+```
