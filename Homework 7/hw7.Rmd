@@ -14,6 +14,8 @@ monofont: Ubuntu Mono
 library(dplyr)
 library(tidyr)
 library(readr)
+library(ggplot2)
+library(mvtnorm)
 
 library(ConsensusClusterPlus)
 
@@ -27,6 +29,108 @@ algorithm from scratch. Run your algorithm multiple times on a simulated 2-D
 dataset that is easy to visualize. Are your k-means results the same? To solve
 this problem, implement consensus clustering by resampling 80% of the data and
 perform k-means each time.*
+
+```{r}
+distance_probs <- function(distances, centroids_idx) {
+  if (length(centroids_idx) == 1) {
+    pairwise_distances <- distances[,centroids_idx]
+  } else {
+    pairwise_distances <- apply(distances[,centroids_idx], 1, min)
+  }
+  return(pairwise_distances/sum(pairwise_distances))
+}
+
+assign_cluster <- function(X, centroids) {
+  k <- dim(centroids)[1]
+  nr <- dim(X)[1]
+  nc <- dim(X)[2]
+
+  distances <- matrix(rep(0, nr*k), nrow=nr, ncol=k)
+  for (i in 1:k) {
+    distances[,i] <- apply(X, 1, f <- function(x) {sum((x - centroids[i])^2)^.5})
+  }
+  return(apply(distances, 1, which.min))
+}
+
+update_centroids <- function(X, assignments, k) {
+  nr <- dim(X)[1]
+  nc <- dim(X)[2]
+
+  centroids <- matrix(nrow=k, ncol=nc)
+  for (i in 1:k) {
+    centroids[i,] <- apply(X[assignments == i,], 2, mean)
+  }
+
+  return(centroids)
+}
+
+kmeans_plusplus <- function(X, k=2, tol=.005) {
+  nr <- dim(X)[1]
+  nc <- dim(X)[2]
+
+  # Pick initial centroids from data
+  all_distances <- as.matrix(dist(X), nrow=nr)
+  
+  centroids <- matrix(rep(0, k*nc), ncol=nc)
+  centroids_idx <- c()
+  centroids_idx[1] <- sample(1:nr, 1)
+  centroids[1,] <- X[centroids_idx[1],]
+
+  for (i in 2:k) {
+    probs <- distance_probs(all_distances, centroids_idx)
+    centroids_idx <- append(centroids_idx, sample(1:nr, 1, prob=probs))
+    centroids[i,] <- X[centroids_idx[i],]
+  }
+
+  # Do the k-means thing.
+  error <- tol+1
+  assignments <- rep(0, nr)
+  counter <- 0
+  status <- 0
+  while(error > tol) {
+    assignments <- assign_cluster(X, centroids)
+    new_centroids <- update_centroids(X, assignments, k)
+    error <- (sum(new_centroids - centroids)^2)^.5
+    centroids <- new_centroids
+
+    if (counter > 100) {
+      status <- 1
+      break
+    }
+    counter <- counter + 1
+  }
+
+  return(list(centroids=centroids, assignments=assignments, steps=counter, status=status))
+}
+```
+
+```{r}
+N <- 1000
+
+mu1 <- c(0, 0)
+Sigma1 <- matrix(c(2, .1, .1, 1), nrow=2, ncol=2)
+X1 <- rmvnorm(N, mean=mu1, sigma=Sigma1, method="chol")
+
+mu2 <- c(5, 5)
+Sigma2 <- matrix(c(1, .5, .5, 2), nrow=2, ncol=2)
+X2 <- rmvnorm(N, mean=mu2, sigma=Sigma2, method="chol")
+
+X <- rbind(X1, X2)
+
+qplot(x=X[,1], y=X[,2])
+```
+
+```{r}
+k <- 2
+res <- kmeans_plusplus(X, k)
+res$centroids
+```
+
+```{r}
+d <- data.frame(cbind(X, res$assignments))
+colnames(d) <- c("X", "Y", "cluster")
+ggplot(d) + aes(x=X,y=Y,colour=factor(cluster)) + geom_point()
+```
 
 
 # Problem 2:
