@@ -41,26 +41,49 @@ distance_probs <- function(distances, centroids_idx) {
 }
 
 assign_cluster <- function(X, centroids) {
+  # print("begin assign_cluster")
   k <- dim(centroids)[1]
   nr <- dim(X)[1]
   nc <- dim(X)[2]
 
+  # print(centroids)
   distances <- matrix(rep(0, nr*k), nrow=nr, ncol=k)
   for (i in 1:k) {
-    distances[,i] <- apply(X, 1, f <- function(x) {sum((x - centroids[i])^2)^.5})
+    # print(dim(X))
+    distances[,i] <- apply(X, 1, f <- function(x) {sum((x - centroids[i,])^2)^.5})
+    # distances[,i] <- apply(X, 1, f <- function(x) {sum((x - centroids[i])^2)^.5})
   }
+  # print(distances)
+  # print("end assign_cluster")
   return(apply(distances, 1, which.min))
 }
 
 update_centroids <- function(X, assignments, k) {
+  # print("begin update_centroids")
   nr <- dim(X)[1]
   nc <- dim(X)[2]
 
-  centroids <- matrix(nrow=k, ncol=nc)
+  # centroids <- matrix(nrow=k, ncol=nc)
+  centroids <- matrix(0, nrow=k, ncol=nc)
+  # print(assignments)
   for (i in 1:k) {
-    centroids[i,] <- apply(X[assignments == i,], 2, mean)
+    # print(i)
+    tmp <- matrix(X[assignments == i], ncol=nc)
+    # print(tmp)
+    if (length(tmp) == 0) {
+    # if (length(tmp) == 1) {
+    # if (is.na(sum(tmp))) {
+      centroids[i,] <- matrix(0, ncol=nc)
+    } else if (is.null(dim(tmp))) {
+      centroids[i,] <- tmp
+    } else {
+      # centroids[i,] <- apply(X[assignments == i,], 2, mean)
+      centroids[i,] <- apply(tmp, 2, mean)
+    }
   }
 
+  # print(centroids)
+  # print("end update_centroids")
   return(centroids)
 }
 
@@ -91,6 +114,10 @@ kmeans_plusplus <- function(X, k=2, tol=.005) {
     assignments <- assign_cluster(X, centroids)
     new_centroids <- update_centroids(X, assignments, k)
     error <- (sum(new_centroids - centroids)^2)^.5
+    # print(centroids)
+    # print(assignments)
+    # print(new_centroids)
+    # print(error)
     centroids <- new_centroids
 
     if (counter > 100) {
@@ -105,31 +132,88 @@ kmeans_plusplus <- function(X, k=2, tol=.005) {
 ```
 
 ```{r}
-N <- 1000
+N <- 50
 
 mu1 <- c(0, 0)
-Sigma1 <- matrix(c(2, .1, .1, 1), nrow=2, ncol=2)
+Sigma1 <- matrix(c(.3, .1, .1, .2), nrow=2, ncol=2)
 X1 <- rmvnorm(N, mean=mu1, sigma=Sigma1, method="chol")
 
 mu2 <- c(5, 5)
-Sigma2 <- matrix(c(1, .5, .5, 2), nrow=2, ncol=2)
+Sigma2 <- matrix(c(.6, .3, .3, .4), nrow=2, ncol=2)
 X2 <- rmvnorm(N, mean=mu2, sigma=Sigma2, method="chol")
 
-X <- rbind(X1, X2)
+mu3 <- c(0, 5)
+Sigma3 <- matrix(c(.6, -.2, -.2, .2), nrow=2, ncol=2)
+X3 <- rmvnorm(N, mean=mu3, sigma=Sigma3, method="chol")
+
+# X <- rbind(X1, X2)
+X <- rbind(X1, X2, X3)
 
 qplot(x=X[,1], y=X[,2])
 ```
 
 ```{r}
-k <- 2
+# k <- 2
+k <- 3
 res <- kmeans_plusplus(X, k)
 res$centroids
+res$status # 0 is good
+res$steps
 ```
 
 ```{r}
 d <- data.frame(cbind(X, res$assignments))
 colnames(d) <- c("X", "Y", "cluster")
 ggplot(d) + aes(x=X,y=Y,colour=factor(cluster)) + geom_point()
+```
+
+Now to do the consensus clustering:
+
+```{r}
+reps <- 100
+K <- c(2, 3, 4, 5)
+
+nr <- dim(X)[1]
+nc <- dim(X)[2]
+nr_sample <- .8 * nr
+
+all_consensus <- list()
+for (k_idx in 1:length(K)) {
+  consensus <- matrix(0, nrow=dim(X)[1], ncol=dim(X)[1])
+  consensus_probs <- matrix(0, nrow=dim(X)[1], ncol=dim(X)[1])
+  counts <- matrix(0, nrow=dim(X)[1], ncol=dim(X)[1])
+  for (i in 1:reps) {
+    idx <- sample(1:(N*3), floor(nr_sample))
+    res <- kmeans_plusplus(X[idx,], K[k_idx])
+    for (j in 1:(K[k_idx])) {
+      tmp <- rep(0, dim(X)[1])
+      tmp[idx[which(res$assignments == j)]] <- 1
+      consensus <- consensus + tmp %*% t(tmp)
+    }
+    tmp <- rep(0, dim(X)[1])
+    tmp[idx] <- 1
+    counts <- counts + tmp %*% t(tmp)
+  }
+  consensus_probs <- consensus/counts
+  consensus_probs <- consensus_probs[upper.tri(consensus_probs)]
+  all_consensus[[k_idx]] <- consensus_probs
+}
+```
+
+```{r}
+ci <- seq(0, 1, .01)
+cdfs <- matrix(0, nrow=length(ci), ncol=length(K))
+nr <- dim(X)[1]
+
+for (i in 1:length(K)) {
+  cdfs[,i] <- sapply(ci, f<-function(l) {sum(all_consensus[[i]]<=l) / (nr * (nr-1) / 2)})
+}
+
+cdf_frame <- tbl_df(as.data.frame(cbind(ci, cdfs)))
+colnames(cdf_frame) <- c("consensus_idx", paste("K=", K, sep=""))
+cdf_frame %>%
+  gather(K, CDF, -consensus_idx) %>%
+  ggplot() + aes(x=consensus_idx, y=CDF, color=K) + geom_line()
 ```
 
 
