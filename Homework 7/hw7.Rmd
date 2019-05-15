@@ -5,7 +5,7 @@ output:
     pdf_document:
         highlight: tango
         latex_engine: xelatex
-fontsize: 12pt
+fontsize: 11pt
 mainfont: Roboto
 monofont: Ubuntu Mono
 ---
@@ -31,6 +31,8 @@ this problem, implement consensus clustering by resampling 80% of the data and
 perform k-means each time.*
 
 ```{r}
+# Compute likelihoods for picking centroids from the data given a set of
+# already picked centroids.
 distance_probs <- function(distances, centroids_idx) {
   if (length(centroids_idx) == 1) {
     pairwise_distances <- distances[,centroids_idx]
@@ -40,60 +42,50 @@ distance_probs <- function(distances, centroids_idx) {
   return(pairwise_distances/sum(pairwise_distances))
 }
 
+# Assign elements to a cluster given a set of centroids.
 assign_cluster <- function(X, centroids) {
-  # print("begin assign_cluster")
   k <- dim(centroids)[1]
   nr <- dim(X)[1]
   nc <- dim(X)[2]
 
-  # print(centroids)
   distances <- matrix(rep(0, nr*k), nrow=nr, ncol=k)
   for (i in 1:k) {
-    # print(dim(X))
     distances[,i] <- apply(X, 1, f <- function(x) {sum((x - centroids[i,])^2)^.5})
-    # distances[,i] <- apply(X, 1, f <- function(x) {sum((x - centroids[i])^2)^.5})
   }
-  # print(distances)
-  # print("end assign_cluster")
   return(apply(distances, 1, which.min))
 }
 
+# Generate a set of centroids given a dataset with assignments to k clusters.
 update_centroids <- function(X, assignments, k) {
-  # print("begin update_centroids")
   nr <- dim(X)[1]
   nc <- dim(X)[2]
 
-  # centroids <- matrix(nrow=k, ncol=nc)
   centroids <- matrix(0, nrow=k, ncol=nc)
-  # print(assignments)
   for (i in 1:k) {
-    # print(i)
     tmp <- matrix(X[assignments == i], ncol=nc)
-    # print(tmp)
+
+    # Need extra (inexhaustive) handling for when trying to compute a new
+    # centroid when no points are assigned to it...
     if (length(tmp) == 0) {
-    # if (length(tmp) == 1) {
-    # if (is.na(sum(tmp))) {
       centroids[i,] <- matrix(0, ncol=nc)
     } else if (is.null(dim(tmp))) {
       centroids[i,] <- tmp
     } else {
-      # centroids[i,] <- apply(X[assignments == i,], 2, mean)
       centroids[i,] <- apply(tmp, 2, mean)
     }
   }
 
-  # print(centroids)
-  # print("end update_centroids")
   return(centroids)
 }
 
+# k-means++ implementation
 kmeans_plusplus <- function(X, k=2, tol=.005) {
   nr <- dim(X)[1]
   nc <- dim(X)[2]
 
   # Pick initial centroids from data
   all_distances <- as.matrix(dist(X), nrow=nr)
-  
+
   centroids <- matrix(rep(0, k*nc), ncol=nc)
   centroids_idx <- c()
   centroids_idx[1] <- sample(1:nr, 1)
@@ -114,12 +106,9 @@ kmeans_plusplus <- function(X, k=2, tol=.005) {
     assignments <- assign_cluster(X, centroids)
     new_centroids <- update_centroids(X, assignments, k)
     error <- (sum(new_centroids - centroids)^2)^.5
-    # print(centroids)
-    # print(assignments)
-    # print(new_centroids)
-    # print(error)
     centroids <- new_centroids
 
+    # Exit if it's not converging.
     if (counter > 100) {
       status <- 1
       break
@@ -127,12 +116,15 @@ kmeans_plusplus <- function(X, k=2, tol=.005) {
     counter <- counter + 1
   }
 
-  return(list(centroids=centroids, assignments=assignments, steps=counter, status=status))
+  return(list(centroids=centroids, assignments=assignments, steps=counter,
+              status=status))
 }
 ```
 
+Generate a dataset with 3 highly visible clusters.
+
 ```{r}
-N <- 50
+N <- 200
 
 mu1 <- c(0, 0)
 Sigma1 <- matrix(c(.3, .1, .1, .2), nrow=2, ncol=2)
@@ -146,20 +138,22 @@ mu3 <- c(0, 5)
 Sigma3 <- matrix(c(.6, -.2, -.2, .2), nrow=2, ncol=2)
 X3 <- rmvnorm(N, mean=mu3, sigma=Sigma3, method="chol")
 
-# X <- rbind(X1, X2)
 X <- rbind(X1, X2, X3)
 
 qplot(x=X[,1], y=X[,2])
 ```
 
+Run k-means for 3 clusters.
+
 ```{r}
-# k <- 2
 k <- 3
 res <- kmeans_plusplus(X, k)
 res$centroids
 res$status # 0 is good
 res$steps
 ```
+
+Visualise the cluster assignments.
 
 ```{r}
 d <- data.frame(cbind(X, res$assignments))
@@ -170,35 +164,45 @@ ggplot(d) + aes(x=X,y=Y,colour=factor(cluster)) + geom_point()
 Now to do the consensus clustering:
 
 ```{r}
-reps <- 100
-K <- c(2, 3, 4, 5)
+reps <- 100          # number of replicates for each k
+K <- c(2, 3, 4, 5)   # check for set of k values
 
 nr <- dim(X)[1]
 nc <- dim(X)[2]
-nr_sample <- .8 * nr
+nr_sample <- .8 * nr # subsample 80% of the dataset
 
-all_consensus <- list()
+all_consensus <- list() # stores a list of consensus matrices for each k
 for (k_idx in 1:length(K)) {
-  consensus <- matrix(0, nrow=dim(X)[1], ncol=dim(X)[1])
-  consensus_probs <- matrix(0, nrow=dim(X)[1], ncol=dim(X)[1])
-  counts <- matrix(0, nrow=dim(X)[1], ncol=dim(X)[1])
+  # Preallocate matrices for storing counts:
+  consensus <- matrix(0, nrow=dim(X)[1], ncol=dim(X)[1]) # pairs that are in the same clusters
+  counts <- matrix(0, nrow=dim(X)[1], ncol=dim(X)[1]) # count of times pairs show up in samplings
+  consensus_probs <- matrix(0, nrow=dim(X)[1], ncol=dim(X)[1]) # for storing counts/probabilities
+
   for (i in 1:reps) {
     idx <- sample(1:(N*3), floor(nr_sample))
     res <- kmeans_plusplus(X[idx,], K[k_idx])
+
+    # Count the number of times pairs (for each cluster) are in the same
+    # cluster.
     for (j in 1:(K[k_idx])) {
       tmp <- rep(0, dim(X)[1])
       tmp[idx[which(res$assignments == j)]] <- 1
       consensus <- consensus + tmp %*% t(tmp)
     }
+
+    # Count the number of times any pair appears in the subsampled dataset.
     tmp <- rep(0, dim(X)[1])
     tmp[idx] <- 1
     counts <- counts + tmp %*% t(tmp)
   }
+
   consensus_probs <- consensus/counts
-  consensus_probs <- consensus_probs[upper.tri(consensus_probs)]
+  consensus_probs <- consensus_probs[upper.tri(consensus_probs)] # the matrix is symmetric, so ignore the bottom triangle.
   all_consensus[[k_idx]] <- consensus_probs
 }
 ```
+
+Plot the CDF for the consensus index:
 
 ```{r}
 ci <- seq(0, 1, .01)
@@ -206,7 +210,10 @@ cdfs <- matrix(0, nrow=length(ci), ncol=length(K))
 nr <- dim(X)[1]
 
 for (i in 1:length(K)) {
-  cdfs[,i] <- sapply(ci, f<-function(l) {sum(all_consensus[[i]]<=l) / (nr * (nr-1) / 2)})
+  cdfs[,i] <- sapply(ci,
+                     f<-function(l) {
+                       sum(all_consensus[[i]]<=l)/(nr*(nr-1)/2)
+                     })
 }
 
 cdf_frame <- tbl_df(as.data.frame(cbind(ci, cdfs)))
@@ -215,6 +222,10 @@ cdf_frame %>%
   gather(K, CDF, -consensus_idx) %>%
   ggplot() + aes(x=consensus_idx, y=CDF, color=K) + geom_line()
 ```
+
+The CDF plot shows that the most suitable cluster number is $k=3$. For that
+value, the CDF is largely flat between 0 and 1, meaning that very few pairs of
+elements are classified in different clusters.
 
 
 # Problem 2:
@@ -231,53 +242,21 @@ your result with theirs. You can download the files here:
 [gene_expression.zip](https://canvas.uchicago.edu/courses/21617/files/2459510/download?wrap=1).*
 
 
-
-
-
-*Find a public available mRNAseq dataset with at least 250 samples and 5000
-genes, perform consensus clustering and report your findings.*
-
-# Background
-
-**Dataset:** Head and Neck Squamous Cell Carcinoma (Primary solid tumor)
-
-\url{http://dx.doi.org/10.7908/C1C828P8}
-
-
-# Data acquisition and cleanup
-
-First, download the dataset.
-
-```{bash, message=F, warning=F}
-./scripts/download2.sh
-```
-
-Cleanup the files.
-
-```{r, message=F, warning=F}
-metadata <- read_tsv('data/normalized_data.txt', col_names=F, n_max=1)
-all_data <- read_tsv('data/normalized_data.txt', skip=1)
-# colnames(all_data) <- metadata
-```
-
-```{r, message=F, warning=F}
-mad_genes <- (all_data %>%
-              gather(key, count, -gene_id) %>%
-              group_by(gene_id) %>%
-              drop_na() %>%
-              summarise(mad=mad(count)) %>%
-              arrange(desc(mad)))[1:5000,] %>% select(gene_id)
-mad_data <- data.matrix(
-              inner_join(mad_genes, all_data, by='gene_id') %>% 
-                select(-gene_id))
+```{r}
+metadata <- read_csv('data/sample_labels_GSE71585.csv')
+all_data <- read_csv('data/top1k_logTPM_GSE71585.csv')
 ```
 
 ```{r}
-title <- "HNSC"
-res <- ConsensusClusterPlus(mad_data, maxK = 6, reps = 50, pItem = 0.8,
+cluster_data <- data.matrix(all_data %>% select(-X1))
+```
+
+```{r}
+title <- "cell"
+res <- ConsensusClusterPlus(cluster_data, maxK = 6, reps = 50, pItem = 0.8,
                             pFeature = 1, title = title, clusterAlg = "hc",
-                            distance = "pearson", seed = 1262118388.71279,
-                            plot = "pdf")
+                            distance = "pearson", seed = 10, plot = "png")
+                            # distance = "pearson", seed = 10, plot = "pdf")
 ```
 
 ```{r}
@@ -289,8 +268,38 @@ res[[2]][["consensusTree"]]
 #consensusClass - the sample classifications
 res[[2]][["consensusClass"]][1:5]
 
-icl = calcICL(res, title=title, plot="pdf")
+icl = calcICL(res, title=title, plot="png")
+# icl = calcICL(res, title=title, plot="pdf")
 head(icl[["clusterConsensus"]])
 
 icl[["itemConsensus"]][1:5, ]
 ```
+
+Consensus cluster graphs:
+
+![Consensus Heatmap Legend](cell/consensus001.png)
+
+![Consensus k=2](cell/consensus002.png)
+
+![Consensus k=3](cell/consensus003.png)
+
+![Consensus k=4](cell/consensus004.png)
+
+![Consensus k=5](cell/consensus005.png)
+
+![Consensus k=6](cell/consensus006.png)
+
+![Consensus CDF](cell/consensus007.png)
+
+![Consensus Delta Area](cell/consensus008.png)
+
+![Consensus Tracking Plot](cell/consensus009.png)
+
+
+ICL graphs:
+
+![Item Consensus (p1)](cell/icl001.png)
+
+![Item Consensus (p2)](cell/icl002.png)
+
+![Item Cluster Consensus](cell/icl003.png)
