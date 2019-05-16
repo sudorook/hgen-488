@@ -6,11 +6,11 @@ archive="gdac.broadinstitute.org_HNSC.Merge_rnaseqv2__illuminahiseq_rnaseqv2__un
 dirname="gdac.broadinstitute.org_HNSC.Merge_rnaseqv2__illuminahiseq_rnaseqv2__unc_edu__Level_3__RSEM_genes_normalized__data.Level_3.2016012800.0.0"
 filename="HNSC.rnaseqv2__illuminahiseq_rnaseqv2__unc_edu__Level_3__RSEM_genes_normalized__data.data.txt"
 
-mkdir -p ../raw_data
-cd ../raw_data
+mkdir -p raw_data
+cd raw_data
 
 wget -nc "${urlprefix}${archive}"
 tar xf "${archive}"
 
-mkdir -p ../data
-mv "${dirname}/${filename}" ../data/data.txt
+mkdir -p data
+mv "${dirname}/${filename}" data/data.txt
