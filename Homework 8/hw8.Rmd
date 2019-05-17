@@ -11,6 +11,8 @@ monofont: Ubuntu Mono
 ---
 
 \newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\argmin}{\operatornamewithlimits{arg\ min}}
+\newcommand{\argmax}{\operatornamewithlimits{arg\ max}}
 
 ```{r, message=F}
 library(glmnet)
@@ -55,7 +57,7 @@ objective function). Optimal $\lambda$ can be determined using the cross
 validation functionality.*
 
 \begin{equation*}
-\hat\beta = \underset{\beta}{\mathrm{arg\,max}} \frac{1}{2n} \norm{y - X \beta}_2^2 + \lambda \big( \frac{1}{2}(1-\alpha)\norm{\beta}_2^2 + \alpha \norm{\beta}_1 \big)
+\hat\beta = \argmax_\beta \frac{1}{2n} \norm{y - X \beta}_2^2 + \lambda \big( \frac{1}{2}(1-\alpha)\norm{\beta}_2^2 + \alpha \norm{\beta}_1 \big)
 \end{equation*}
 
 *For each of the following cases, quantify the MSE and explain why a certain
