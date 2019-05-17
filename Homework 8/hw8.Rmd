@@ -1,0 +1,119 @@
+---
+title: Homework 8
+author: Ansel George
+output:
+  pdf_document:
+    latex_engine: xelatex
+    highlight: tango
+fontsize: 11pt
+mainfont: Noto Sans
+monofont: Ubuntu Mono
+---
+
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+
+```{r, message=F}
+library(glmnet)
+
+set.seed(10)
+```
+
+# Part I: PCA & Penalized Regression
+
+## Problem 1
+
+### a)
+*Explain the relationship between SVD, PCA, QR and eigenvalue decomposition.*
+
+### b)
+*Implement Gram-Schmidt orthogonalization, and use it to perform QR, SVD and
+PCA.*
+
+
+## Problem 2
+*Calculate the principal components of a covariance matrix $C_{p\times p} (=
+\frac{1}{n}A^T A)$ using:*
+
+*(You can use any dataset of $A_{n\times p}$ with $p \geq 10$.)*
+
+```{r}
+n <- 20
+p <- 15
+A <- matrix(rnorm(n*p), nrow=n, ncol=p)
+Cov <- 1/n * A %*% t(A)
+```
+
+### i) SVD
+
+### ii) Eigenvalue decomposition
+
+
+## Problem 3
+*Compare three penalized regression methods: ridge regression, lasso and
+elastic net using R package `glmnet` (correspond to $\alpha = 0, 0.5, 1$ in the
+objective function). Optimal $\lambda$ can be determined using the cross
+validation functionality.*
+
+\begin{equation*}
+\hat\beta = \underset{\beta}{\mathrm{arg\,max}} \frac{1}{2n} \norm{y - X \beta}_2^2 + \lambda \big( \frac{1}{2}(1-\alpha)\norm{\beta}_2^2 + \alpha \norm{\beta}_1 \big)
+\end{equation*}
+
+*For each of the following cases, quantify the MSE and explain why a certain
+estimator is better. Generate your data under the true model:*
+
+\begin{equation*}
+y = X\beta + \epsilon\textrm{, where } y \in \mathbb{R}^n, X \in \mathbb{R}^{n \times p}\textrm{, } \beta \in \mathbb{R}^p \textrm{, } \epsilon \sim N(0,I_n) \textrm{ and: }
+\end{equation*}
+
+### a)
+*$p = 5000$, $n=1000$, the first $15$ entries of $\beta$ equal to $1$ and the
+other $4085$ equal to $0$, $X_i \sim N(0, I_p)$, $i = 1, \dots, n$.*
+
+### b)
+*$p = 5000$, $n=1000$, the first $1000$ entries of $\beta$ equal to $1$ and the
+other $4000$ equal to $0$, $X_i \sim N(0, I_p)$, $i = 1, \dots, n$.*
+
+### c)
+*$p = 50$, $n=100$, five entries of $\beta$ equal to $10$, another five equal
+to $5$, and the rest $40$ equal to $0$. Each $X_i \sim N(0, \Sigma)$ where*
+$\Sigma_{jk} = .6^{|i-j|}$ for $j,k = 1, \dots, p$ and $i = 1, \dots, n$.
+
+
+# Part II: Variant Calling
+
+## Problem 4
+*We are calling genotype of an individual from sequencing data. Consider one
+position: there are 4 reads mapped to the allele C, the reference allele, and 2
+reads mapped to the allele T. The error rate ε is assumed to be 0.03 for all
+reads.*
+
+### a)
+*Use the individual prior defined in slide 16 and genotype likelihood based on
+the given error rate, derive the posterior probabilities for genotypes CC, CT
+and TT.*
+
+### b)
+*When there is also sequencing information from the individual’s family
+members, we can use a ‘family prior’ instead. Specifically, suppose we have
+determined the genotypes of the parents as CC and CT. What should be the prior
+probabilities of the genotypes given this information? Determine the posterior
+probabilities of the child genotypes. Which genotype is the most probable now?*
+
+
+## Problem 5
+*Derive the EM algorithm update rule for the problem of estimating genotype
+frequencies from sequencing reads (slide 23).*
+
+## Problem 6
+*We are performing an association study using whole-exome or genome sequencing.
+The basic analysis is for each variant, detect if its allele frequencies
+(assume Hardy-Weinberg equilibrium) are different between cases and controls.*
+
+### a)
+*Suppose cases and controls are sequenced at different labs, with possibly
+different sequencing depth. If we call genotypes of each individual first, and
+then compare the frequency of alleles between cases and controls to detect
+association, what would be the problem of this procedure?*
+
+### b)
+*Describe how you would address this problem.*
