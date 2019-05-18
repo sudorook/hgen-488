@@ -27,9 +27,29 @@ set.seed(10)
 ### a)
 *Explain the relationship between SVD, PCA, QR and eigenvalue decomposition.*
 
+SVD: Singular value decomposition differs from PCA in that it exists for any
+matrix, including non-square ones.
+
+QR factorization exists for any matrix and decomposes a matrix $A$ into the
+product $A=QR$, where $Q$ is an orthonormal matrix and $R$ is upper triangular.
+
+An EVD, which only exists for invertible matrices, decomposes a matrix $A$ into
+the products $A=V\Lambda V^T$, where $V$ is the set of eigenvectors and
+$\Lambda$ a diagonal set of eigenvalues. If one were to multiply $\Lambda V^T$,
+it would result in an upper-triangular matrix - $R$ in the formula for the $QR$
+factorization. Also, because $V$ is a set of eigenvectors, they are by
+definition orthogonal - $Q$ in terms of the $QR$ factorization.
+
+
 ### b)
 *Implement Gram-Schmidt orthogonalization, and use it to perform QR, SVD and
 PCA.*
+
+Gram-Schmidt is poorly conditioned and in general is a stupid idea, so I'll use
+Householder reflections instead. They work by rotating the original matrix, an
+operation with condition number of 1. The result is that it doesn't amplify
+errors in $A$, assuming $A$ represents real data that contains noise, etc. from
+measurement.
 
 
 ## Problem 2
@@ -116,6 +136,10 @@ The basic analysis is for each variant, detect if its allele frequencies
 different sequencing depth. If we call genotypes of each individual first, and
 then compare the frequency of alleles between cases and controls to detect
 association, what would be the problem of this procedure?*
+
+Any differences between cases and controls could be an artifact from the
+sequencing procedure.
+
 
 ### b)
 *Describe how you would address this problem.*
