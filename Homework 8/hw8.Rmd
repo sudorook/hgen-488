@@ -54,10 +54,10 @@ represents real data that contains noise, etc. from measurement.
 
 ```{r}
 qr_householder <- function(X) {
-  nc <- ncol(X)
   nr <- nrow(X)
+  nc <- ncol(X)
 
-  Q <- diag(1, nc)
+  Q <- diag(1, nr)
   R <- X
 
   for(i in 1:(nc-1)) {
