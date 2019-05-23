@@ -16,6 +16,7 @@ monofont: Ubuntu Mono
 
 ```{r, message=F}
 library(glmnet)
+library(mvtnorm)
 
 set.seed(10)
 ```
@@ -46,10 +47,76 @@ definition orthogonal - $Q$ in terms of the $QR$ factorization.
 PCA.*
 
 Gram-Schmidt is poorly conditioned and in general is a stupid idea, so I'll use
-Householder reflections instead. They work by rotating the original matrix, an
-operation with condition number of 1. The result is that it doesn't amplify
-errors in $A$, assuming $A$ represents real data that contains noise, etc. from
-measurement.
+Householder reflections instead. They work by sequential rotations of the
+original matrix, an operation where the condition number is 1. The result is
+that errors in $A$ aren't amplified over sequential operations, assuming $A$
+represents real data that contains noise, etc. from measurement.
+
+```{r}
+qr_householder <- function(X) {
+  nc <- ncol(X)
+  nr <- nrow(X)
+
+  Q <- diag(1, nc)
+  R <- X
+
+  for(i in 1:(nc-1)) {
+    v <- R[i:nr, i]
+    e <- rep(0, length(v))
+    e[1] <- norm(v, "2") * sign(-X[i, i])
+    v <- v + e
+    v <- v / norm(v, "2")
+    H <- diag(nr)
+    H[i:nr, i:nr] <- H[i:nr, i:nr] - 2*outer(v, v)
+    R <- H %*% R
+    Q <- Q %*% H
+  }
+
+  return(list(Q=Q,R=R))
+}
+```
+
+```{r}
+n <- 10
+p <- 8
+A <- matrix(rnorm(n*p), nrow=n, ncol=p)
+```
+
+**QR:**
+
+```{r}
+res <- qr_householder(X)
+res$Q
+res$R
+```
+
+**QR and PCA:**
+
+```{r}
+X <- 1/n * A %*% t(A) # get covariance matrix for PCA
+reps <- 1000
+
+V <- diag(1, dim(D)[1]);
+for(i in 1:reps) {
+  res <- qr_householder(X)
+  Q <- res$Q
+  V <- V %*% Q
+  X <- res$R %*% Q
+}
+```
+
+```{r}
+# Compare values with the built-in `eigen` function:
+res <- eigen(X)
+
+res$values
+diag(X)
+
+res$vectors
+V
+```
+
+**QR and SVD:**
 
 
 ## Problem 2
@@ -59,13 +126,18 @@ measurement.
 *(You can use any dataset of $A_{n\times p}$ with $p \geq 10$.)*
 
 ```{r}
-n <- 20
-p <- 15
+n <- 10
+p <- 8
 A <- matrix(rnorm(n*p), nrow=n, ncol=p)
-Cov <- 1/n * A %*% t(A)
+X <- 1/n * A %*% t(A)
 ```
 
 ### i) SVD
+
+The SVD exists for any matrix, so the SVD of matrix $A$ can be used to compute
+the eigenvector and eigenvalues of the covariance matrix:
+
+
 
 ### ii) Eigenvalue decomposition
 
@@ -91,14 +163,62 @@ y = X\beta + \epsilon\textrm{, where } y \in \mathbb{R}^n, X \in \mathbb{R}^{n \
 *$p = 5000$, $n=1000$, the first $15$ entries of $\beta$ equal to $1$ and the
 other $4085$ equal to $0$, $X_i \sim N(0, I_p)$, $i = 1, \dots, n$.*
 
+```{r}
+p <- 5000
+n <- 1000
+b <- c(rep(1,15), rep(0,4985))
+
+mu <- rep(0, p)
+S <- diag(rep(1,p))
+
+X <- rmvnorm(n, mean=mu, sigma=S, method="chol")
+```
+
+**Ridge Regression:**
+
+```{r}
+rrfit <- glmnet(X, X %*% b, alpha=0)
+plot(rrfit$lambda)
+lines(rrfit$lambda)
+```
+
+
+
+**LASSO:**
+
+**Elastic Net:**
+
+
 ### b)
 *$p = 5000$, $n=1000$, the first $1000$ entries of $\beta$ equal to $1$ and the
 other $4000$ equal to $0$, $X_i \sim N(0, I_p)$, $i = 1, \dots, n$.*
+
+```{r}
+p <- 5000
+n <- 1000
+b <- c(rep(1,1000), rep(0,4000))
+
+mu <- rep(0, p)
+S <- diag(rep(1,p))
+
+X <- rmvnorm(n, mean=mu, sigma=S, method="chol")
+```
 
 ### c)
 *$p = 50$, $n=100$, five entries of $\beta$ equal to $10$, another five equal
 to $5$, and the rest $40$ equal to $0$. Each $X_i \sim N(0, \Sigma)$ where*
 $\Sigma_{jk} = .6^{|i-j|}$ for $j,k = 1, \dots, p$ and $i = 1, \dots, n$.
+
+```{r}
+p <- 50
+n <- 100
+b <- c(rep(10,5), rep(5,5), rep(0, 40))
+
+mu <- rep(0, p)
+
+
+X <- rmvnorm(n, mean=mu, sigma=S, method="chol")
+```
 
 
 # Part II: Variant Calling
