@@ -46,33 +46,65 @@ definition orthogonal - $Q$ in terms of the $QR$ factorization.
 *Implement Gram-Schmidt orthogonalization, and use it to perform QR, SVD and
 PCA.*
 
-Gram-Schmidt is poorly conditioned and in general is a stupid idea, so I'll use
-Householder reflections instead. They work by sequential rotations of the
-original matrix, an operation where the condition number is 1. The result is
+Gram-Schmidt is poorly conditioned and in general is a stupid idea, especially
+when iteratively computing QR factorizations to get the SVD and PCA, so I'll
+use Householder reflections instead. They work by sequential reflections of the
+original matrix --- an operation where the condition number is 1. The result is
 that errors in $A$ aren't amplified over sequential operations, assuming $A$
 represents real data that contains noise, etc. from measurement.
 
 ```{r}
-qr_householder <- function(X) {
-  nr <- nrow(X)
-  nc <- ncol(X)
+HouseholderQR <- function(X) {
+  m <- nrow(X)
+  n <- ncol(X)
 
-  Q <- diag(1, nr)
+  if (m > n) {
+    l <- n
+  } else {
+    l <- m
+  }
+
+  Q <- diag(m)
   R <- X
 
-  for(i in 1:(nc-1)) {
-    v <- R[i:nr, i]
+  for(i in 1:(l)) {
+    v <- R[i:m, i]
     e <- rep(0, length(v))
-    e[1] <- norm(v, "2") * sign(-X[i, i])
+    e[1] <- norm(v, "2") * sign(v[1])
     v <- v + e
+    # if ((length(v) == 1) && (all.equal(v, 0) == T)) {
+    #   v <- 0
+    # } else {
+    #   v <- v / norm(v, "2")
+    # }
     v <- v / norm(v, "2")
-    H <- diag(nr)
-    H[i:nr, i:nr] <- H[i:nr, i:nr] - 2*outer(v, v)
+    H <- diag(m)
+    H[i:m, i:m] <- H[i:m, i:m] - 2*outer(v, v)
     R <- H %*% R
     Q <- Q %*% H
   }
 
   return(list(Q=Q,R=R))
+}
+
+GramSchmidtQR <- function(A) {
+  m <- dim(A)[1]
+  n <- dim(A)[2]
+
+  Q <- matrix(0, nrow=m, ncol=n)
+  R <- matrix(0, nrow=n, ncol=n)
+
+  for (j in 1:n) {
+    v <- A[,j]
+    for (i in 1:j) {
+      R[i,j] <- Q[,i] %*% A[,j]
+      v <- v - R[i,j] * Q[,i]
+    }
+    R[j,j] <- norm(v, type="2")
+    Q[,j] <- v / R[j,j]
+  }
+
+  return(list(Q=Q, R=R))
 }
 ```
 
@@ -85,38 +117,220 @@ A <- matrix(rnorm(n*p), nrow=n, ncol=p)
 **QR:**
 
 ```{r}
-res <- qr_householder(X)
-res$Q
-res$R
+res <- HouseholderQR(A)
+Q <- res$Q
+R <- res$R
 ```
+
+```{r}
+round(Q, 8) # round to make 0's more obvious
+round(R, 8) # round to make 0's more obvious
+
+all.equal(Q %*% t(Q), diag(dim(Q)[1])) # check that Q is orthogonal
+all.equal(Q %*% R, A)
+```
+
 
 **QR and PCA:**
 
-```{r}
-X <- 1/n * A %*% t(A) # get covariance matrix for PCA
-reps <- 1000
+The PCA exists for the symmetric matrix $X$ where the mean of $X$ is centered
+at 0, and the eigenvalues and eigenvectors can be found though the iterative
+algorithm:
 
-V <- diag(1, dim(D)[1]);
-for(i in 1:reps) {
-  res <- qr_householder(X)
-  Q <- res$Q
-  V <- V %*% Q
-  X <- res$R %*% Q
+\begin{equation}
+  \begin{split}
+    X^{(t)} = Q^{(t)} R^{(t)} \\
+    X^{(t+1)} = R^{(t)} Q^{(t)}
+  \end{split}
+\begin{equation}
+
+The PCA of X takes the form:
+
+\begin{equation}
+  X = V \Lambda V^T
+\end{equation}
+
+where $V$ is the set of eigenvectors and $\Lambda$ the diagonal of
+corresponding eigenvalues.
+
+The iteration has the property that:
+
+\begin{align}
+  X^{(t+1)} &= R^{(t)} Q^{(t)} \\
+            &= {Q^{(t)}}^T Q^{(t)} R^{(t)} Q^{(t)} \\
+            &= {Q^{(t)}}^T X^{(t)} Q^{(t)} \\
+  X^{(t+2)} &= R^{(t+1)} Q^{(t+1)} \\
+            &= {Q^{(t+1)}}^T Q^{(t+1)} R^{(t+1)} Q^{(t+1)} \\
+            &= {Q^{(t+1)}}^T X^{(t+1)} Q^{(t+1)} \\
+            &= {Q^{(t+1)}}^T {Q^{(t)}}^T X^{(t)} Q^{(t)} Q^{(t+1)} \\
+  \vdots \\
+  X^{(n)} &= {\prod^n Q^{(i)}}^T X^{(t=1)} \prod^n Q^{(i)}
+\end{align}
+
+
+```{r}
+PCAfromQR <- function(A, QR, reps=100) {
+  m <- dim(A)[1]
+  n <- dim(A)[2]
+
+  # Center the data and compute the covariance matrix
+  A_center <- A - apply(A, 2, mean)
+  A <- apply(A, 1, function(x) {x - colMeans(A)})
+  A <- t(A)
+  X <- cov(A)
+
+  V <- diag(1, dim(X)[1]);
+  L <- X
+
+  for(i in 1:reps) {
+    res <- QR(L)
+    Q <- res$Q
+    R <- res$R
+    V <- V %*% Q
+    L <- R %*% Q
+  }
+
+  return(list(V=V, L=L))
 }
 ```
 
 ```{r}
-# Compare values with the built-in `eigen` function:
-res <- eigen(X)
+res <- PCAfromQR(A, HouseholderQR, reps=100)
+V <- res$V
+L <- res$L
 
-res$values
-diag(X)
+# Compare values with the built-in `prcomp` function:
+res <- prcomp(A)
 
-res$vectors
+# Note that A is not full rank, so the last two eigenvectors and
+# eigenvectors are nonsense. 
+res$sdev^2
+diag(L)
+
+res$rotation
 V
+
+all.equal(res$rotation, V %*% diag(round(res$rotation/V)[1,]))
 ```
 
+
 **QR and SVD:**
+
+```{r}
+SVDfromQR <- function(X, QR, reps=100) {
+  nc <- ncol(X)
+  nr <- nrow(X)
+
+  L1 <- X %*% t(X)
+  U <- diag(1, dim(L1)[1]);
+  for(i in 1:reps) {
+    res <- QR(L1)
+    Q <- res$Q
+    U <- U %*% Q
+    L1 <- res$R %*% Q
+  }
+
+  L2 <- t(X) %*% X
+  V <- diag(1, dim(L2)[1]);
+  for(i in 1:reps) {
+    res <- QR(L2)
+    Q <- res$Q
+    V <- V %*% Q
+    L2 <- res$R %*% Q
+  }
+
+  # Pad the sigma matrix or subset it based on the dimensions of the input
+  # matrix.
+  if (nc > nr) {
+    Z <- matrix(0, nrow=nc, ncol=nr-nc)
+    S <- cbind(diag(sqrt(diag(L2))), Z)
+  } else if (nc < nr) {
+    Z <- matrix(0, nrow=nr-nc, ncol=nc)
+    S <- diag(sqrt(diag(L1)[1:nc]))
+    S <- rbind(S, Z)
+  }
+
+  adjust <- round((A %*% V) / (U %*% S))[1,]
+  V <- V %*% diag(adjust)
+
+  return(list(U=U, S=S, V=V))
+}
+
+GolubKahanBidiagonalize <- function(A, QR, reps=100) {
+  m <- nrow(A)
+  n <- ncol(A)
+
+  X <- A
+  U <- diag(m)
+  V <- diag(n)
+
+  for (k in 1:n) {
+    x <- X[k:m,k]
+    e <- rep(0, length(x))
+    e[1] <- norm(x, "2") * sign(x[1])
+    u <- x + e
+    u <- u / norm(u, "2")
+    X[k:m, k:n] <- X[k:m, k:n] - 2*u %*% (t(u) %*% X[k:m, k:n])
+
+    if (k <= n-2) {
+      x <- X[k,(k+1):n]
+      e <- rep(0, length(x))
+      e[1] <- norm(x, "2") * sign(x[1])
+      v <- x + e
+      v <- v / norm(v, "2")
+      X[k:m,(k+1):n] <- X[k:m,(k+1):n] - 2*X[k:m,(k+1):n] %*% v %*% t(v)
+    }
+  }
+
+  return(list(U=t(U),B=X,V=V))
+}
+
+SVDfromQRv2 <- function(A, QR, GKB, reps=100) {
+  m <- nrow(A)
+  n <- ncol(A)
+
+  res <- QR(A)
+  Q <- res$Q
+  R <- res$R
+
+  B <- GKB(A)
+
+   # <- diag(1, dim(L)[1]);
+  for(i in 1:reps) {
+    res <- QR(L)
+    Q <- res$Q
+    Y <- Y %*% Q
+    L <- res$R %*% Q
+  }
+
+  return(list(U=U, S=S, V=V))
+}
+```
+
+```{r}
+res <- SVDfromQR(A, HouseholderQR, 500)
+S <- res$S
+V <- res$V
+U <- res$U
+
+# Compare the matrices with the built-in `svd` function:
+A.svd <- svd(A)
+
+A.svd$u
+U[,1:8]
+
+A.svd$v
+V
+
+A.svd$d
+diag(S)
+
+# Check the U S V^T returns A
+all.equal(U %*% S %*% t(V), A)
+
+U %*% S %*% t(V)
+A
+```
 
 
 ## Problem 2
@@ -135,11 +349,37 @@ X <- 1/n * A %*% t(A)
 ### i) SVD
 
 The SVD exists for any matrix, so the SVD of matrix $A$ can be used to compute
-the eigenvector and eigenvalues of the covariance matrix:
+the eigenvector and eigenvalues of the covariance matrix $X$:
 
+\begin{align}
+X &= \frac{1}{n} A A^T \\
+  &= \frac{1}{n} U \Sigma V^T V \Sigma^T U^T \\
+  &= \frac{1}{n} U \Sigma^2 U^T
+\end{align}
+
+The eigenvalues of $X$ are therefore the square of the diagonal of $X$, and the
+eigenvector matrix is $U$.
+
+```{r}
+n <- ncol(A) # columns are individuals, rows are features
+
+res <- svd(A)
+S <- res$d
+U <- res$u
+
+S^2 / n # loadings
+U       # component vectors
+
+# Compare with the direct PCA on individuals in feature-space
+res <- eigen(X)
+res$values
+res$vectors
+```
 
 
 ### ii) Eigenvalue decomposition
+
+Because the matrix $A$ is not necessarily square, an EVD does not exist.
 
 
 ## Problem 3
