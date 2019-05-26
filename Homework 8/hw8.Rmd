@@ -5,9 +5,11 @@ output:
   pdf_document:
     latex_engine: xelatex
     highlight: tango
-fontsize: 11pt
-mainfont: Noto Sans
-monofont: Ubuntu Mono
+fontsize: 12pt
+mainfont: LiberationSans
+sansfont: LiberationSans
+mathfont: LiberationSans
+monofont: LiberationMono
 ---
 
 \newcommand{\norm}[1]{\left\lVert#1\right\rVert}
@@ -123,11 +125,11 @@ R <- res$R
 ```
 
 ```{r}
-round(Q, 8) # round to make 0's more obvious
-round(R, 8) # round to make 0's more obvious
+round(Q, 4) # round to make 0's more obvious
+round(R, 4) # round to make 0's more obvious
 
 all.equal(Q %*% t(Q), diag(dim(Q)[1])) # check that Q is orthogonal
-all.equal(Q %*% R, A)
+all.equal(Q %*% R, A) # check that the QR evaluates to A
 ```
 
 
@@ -142,7 +144,7 @@ algorithm:
     X^{(t)} = Q^{(t)} R^{(t)} \\
     X^{(t+1)} = R^{(t)} Q^{(t)}
   \end{split}
-\begin{equation}
+\end{equation}
 
 The PCA of X takes the form:
 
@@ -163,7 +165,7 @@ The iteration has the property that:
             &= {Q^{(t+1)}}^T Q^{(t+1)} R^{(t+1)} Q^{(t+1)} \\
             &= {Q^{(t+1)}}^T X^{(t+1)} Q^{(t+1)} \\
             &= {Q^{(t+1)}}^T {Q^{(t)}}^T X^{(t)} Q^{(t)} Q^{(t+1)} \\
-  \vdots \\
+  &\vdots \\
   X^{(n)} &= {\prod^n Q^{(i)}}^T X^{(t=1)} \prod^n Q^{(i)}
 \end{align}
 
@@ -195,7 +197,8 @@ PCAfromQR <- function(A, QR, reps=100) {
 ```
 
 ```{r}
-res <- PCAfromQR(A, HouseholderQR, reps=100)
+# res <- PCAfromQR(A, HouseholderQR, reps=500)
+res <- PCAfromQR(A, GramSchmidtQR, reps=500)
 V <- res$V
 L <- res$L
 
@@ -204,13 +207,12 @@ res <- prcomp(A)
 
 # Note that A is not full rank, so the last two eigenvectors and
 # eigenvectors are nonsense. 
-res$sdev^2
 diag(L)
+all.equal.numeric(diag(L), res$sdev^2)
 
-res$rotation
 V
-
-all.equal(res$rotation, V %*% diag(round(res$rotation/V)[1,]))
+V_adj <- V %*% diag(round(res$rotation/V)[1,]) # adjust signs on eigenvectors
+all.equal(matrix(res$rotation, ncol=ncol(res$rotation)), V_adj)
 ```
 
 
@@ -308,6 +310,9 @@ SVDfromQRv2 <- function(A, QR, GKB, reps=100) {
 ```
 
 ```{r}
+m <- nrow(A)
+n <- ncol(A)
+
 res <- SVDfromQR(A, HouseholderQR, 500)
 S <- res$S
 V <- res$V
@@ -316,20 +321,19 @@ U <- res$U
 # Compare the matrices with the built-in `svd` function:
 A.svd <- svd(A)
 
-A.svd$u
-U[,1:8]
+U[,1:n] # subset U because the `svd` function doesn't return a square U
+U_adj <- U[,1:n] %*% diag(round(A.svd$u/U[,1:n])[1,]) # adjust signs on eigenvectors
+all.equal.numeric(A.svd$u, U_adj)
 
-A.svd$v
 V
+V_adj <- V %*% diag(round(A.svd$v/V)[1,]) # adjust signs on eigenvectors
+all.equal.numeric(A.svd$v, V_adj)
 
 A.svd$d
 diag(S)
 
 # Check the U S V^T returns A
-all.equal(U %*% S %*% t(V), A)
-
-U %*% S %*% t(V)
-A
+all.equal.numeric(U %*% S %*% t(V), A)
 ```
 
 
@@ -340,11 +344,15 @@ A
 *(You can use any dataset of $A_{n\times p}$ with $p \geq 10$.)*
 
 ```{r}
-n <- 10
-p <- 8
+# n <- 20
+# p <- 16
+n <- 8
+p <- 6
 A <- matrix(rnorm(n*p), nrow=n, ncol=p)
-X <- 1/n * A %*% t(A)
+
+pca <- prcomp(A)
 ```
+
 
 ### i) SVD
 
@@ -352,34 +360,63 @@ The SVD exists for any matrix, so the SVD of matrix $A$ can be used to compute
 the eigenvector and eigenvalues of the covariance matrix $X$:
 
 \begin{align}
-X &= \frac{1}{n} A A^T \\
-  &= \frac{1}{n} U \Sigma V^T V \Sigma^T U^T \\
-  &= \frac{1}{n} U \Sigma^2 U^T
+X &= \frac{1}{n-1} A^T A \\
+  &= \frac{1}{n-1} V \Sigma^T U^T U \Sigma V^T \\
+  &= \frac{1}{n-1} V \Sigma^2 V^T
 \end{align}
 
 The eigenvalues of $X$ are therefore the square of the diagonal of $X$, and the
-eigenvector matrix is $U$.
+eigenvector matrix is $V$.
 
 ```{r}
-n <- ncol(A) # columns are individuals, rows are features
+n <- ncol(A) # columns are individuals
+m <- nrow(A) # rows are features
 
-res <- svd(A)
-S <- res$d
-U <- res$u
+A_center <- t(apply(A, 1, function(X) { X - colMeans(A) }))
 
-S^2 / n # loadings
-U       # component vectors
+A.svd <- svd(A_center / sqrt(m-1))
+S <- diag(A.svd$d)
+U <- A.svd$u
+V <- A.svd$v
 
-# Compare with the direct PCA on individuals in feature-space
-res <- eigen(X)
-res$values
-res$vectors
+# compare singular values with PCA loadings
+diag(S)
+all.equal.numeric(diag(S), pca$sdev)
+
+# compare orthonormal bases
+V
+all.equal.numeric(matrix(pca$rotation, ncol=n), V)
 ```
 
 
 ### ii) Eigenvalue decomposition
 
-Because the matrix $A$ is not necessarily square, an EVD does not exist.
+Because the matrix $A$ is not necessarily square, an EVD does not exist. It
+must instead be computed on the covariance matrix. This, in effect, means
+directly computing the PCA.
+
+```{r}
+n <- ncol(A) # columns are individuals
+m <- nrow(A) # rows are features
+
+A_center <- t(apply(A, 1, function(X) { X - colMeans(A) }))
+X <- 1/(m-1) * t(A_center) %*% A_center
+
+res <- eigen(X)
+V <- res$vectors
+L <- diag(res$values)
+
+V
+V_adj <- V %*% diag(round(pca$rotation/V)[1,]) # adjust signs on eigenvectors
+all.equal.numeric(matrix(pca$rotation, ncol=n), V_adj)
+
+diag(L)
+all.equal.numeric(pca$sdev^2, diag(L))
+```
+
+In this case, some of the vectors from the EVD is the negative of those
+obtained by the computing the principal components. This is understandable
+given that the vectors correspond to the square of the singular values of $A$.
 
 
 ## Problem 3
@@ -389,7 +426,7 @@ objective function). Optimal $\lambda$ can be determined using the cross
 validation functionality.*
 
 \begin{equation*}
-\hat\beta = \argmax_\beta \frac{1}{2n} \norm{y - X \beta}_2^2 + \lambda \big( \frac{1}{2}(1-\alpha)\norm{\beta}_2^2 + \alpha \norm{\beta}_1 \big)
+  \hat\beta = \argmax_\beta \frac{1}{2n} \norm{y - X \beta}_2^2 + \lambda \big( \frac{1}{2}(1-\alpha)\norm{\beta}_2^2 + \alpha \norm{\beta}_1 \big)
 \end{equation*}
 
 *For each of the following cases, quantify the MSE and explain why a certain
@@ -403,37 +440,66 @@ y = X\beta + \epsilon\textrm{, where } y \in \mathbb{R}^n, X \in \mathbb{R}^{n \
 *$p = 5000$, $n=1000$, the first $15$ entries of $\beta$ equal to $1$ and the
 other $4085$ equal to $0$, $X_i \sim N(0, I_p)$, $i = 1, \dots, n$.*
 
-```{r}
+```{r, eval=F}
 p <- 5000
 n <- 1000
 b <- c(rep(1,15), rep(0,4985))
 
 mu <- rep(0, p)
-S <- diag(rep(1,p))
+S <- diag(p)
 
 X <- rmvnorm(n, mean=mu, sigma=S, method="chol")
+y <- X %*% b
 ```
 
 **Ridge Regression:**
 
-```{r}
-rrfit <- glmnet(X, X %*% b, alpha=0)
-plot(rrfit$lambda)
-lines(rrfit$lambda)
+```{r, eval=F}
+ridge.fit <- glmnet(X, y, alpha=0)
+plot(ridge.fit)
+
+ridge.err <- norm(y - X %*% ridge.fit$beta, "2")
+ridge.err
+
+# Cross-validation of lambda values
+ridge.cv <- cv.glmnet(X, y, alpha=0)
+plot(ridge.cv)
 ```
 
+**Lasso:**
 
+```{r, eval=F}
+lasso.fit <- glmnet(X, y, alpha=1)
+plot(lasso.fit)
 
-**LASSO:**
+lasso.err <- norm(y - X %*% lasso.fit$beta, "2")
+lasso.err
+
+# Cross-validation of lambda values
+lasso.cv <- cv.glmnet(X, y, alpha=1)
+plot(lasso.cv)
+```
 
 **Elastic Net:**
+
+```{r, eval=F}
+elastic.fit <- glmnet(X, y, alpha=0.5)
+plot(elastic.fit)
+
+elastic.err <- norm(y - X %*% elastic.fit$beta, "2")
+elastic.err
+
+# Cross-validation of lambda values
+elastic.cv <- cv.glmnet(X, y, alpha=0.5)
+plot(elastic.cv)
+```
 
 
 ### b)
 *$p = 5000$, $n=1000$, the first $1000$ entries of $\beta$ equal to $1$ and the
 other $4000$ equal to $0$, $X_i \sim N(0, I_p)$, $i = 1, \dots, n$.*
 
-```{r}
+```{r, eval=F}
 p <- 5000
 n <- 1000
 b <- c(rep(1,1000), rep(0,4000))
@@ -442,22 +508,109 @@ mu <- rep(0, p)
 S <- diag(rep(1,p))
 
 X <- rmvnorm(n, mean=mu, sigma=S, method="chol")
+y <- X %*% b
 ```
+
+**Ridge Regression:**
+
+```{r, eval=F}
+ridge.fit <- glmnet(X, y, alpha=0)
+plot(ridge.fit)
+
+ridge.err <- norm(y - X %*% ridge.fit$beta, "2")
+ridge.err
+
+# Cross-validation of lambda values
+ridge.cv <- cv.glmnet(X, y, alpha=0)
+plot(ridge.cv)
+```
+
+**Lasso:**
+
+```{r, eval=F}
+lasso.fit <- glmnet(X, y, alpha=1)
+plot(lasso.fit)
+
+lasso.err <- norm(y - X %*% lasso.fit$beta, "2")
+lasso.err
+
+# Cross-validation of lambda values
+lasso.cv <- cv.glmnet(X, y, alpha=1)
+plot(lasso.cv)
+```
+
+**Elastic Net:**
+
+```{r, eval=F}
+elastic.fit <- glmnet(X, y, alpha=0.5)
+plot(elastic.fit)
+
+elastic.err <- norm(y - X %*% elastic.fit$beta, "2")
+elastic.err
+
+# Cross-validation of lambda values
+elastic.cv <- cv.glmnet(X, y, alpha=0.5)
+plot(elastic.cv)
+```
+
 
 ### c)
 *$p = 50$, $n=100$, five entries of $\beta$ equal to $10$, another five equal
-to $5$, and the rest $40$ equal to $0$. Each $X_i \sim N(0, \Sigma)$ where*
-$\Sigma_{jk} = .6^{|i-j|}$ for $j,k = 1, \dots, p$ and $i = 1, \dots, n$.
+to $5$, and the rest $40$ equal to $0$. Each $X_i \sim N(0, \Sigma)$ where
+$\Sigma_{jk} = .6^{|i-j|}$ for $j,k = 1, \dots, p$ and $i = 1, \dots, n$.*
 
-```{r}
+```{r, eval=F}
 p <- 50
 n <- 100
 b <- c(rep(10,5), rep(5,5), rep(0, 40))
 
 mu <- rep(0, p)
-
+S <- toeplitz(rep(.6, p)^seq(0, p-1))
 
 X <- rmvnorm(n, mean=mu, sigma=S, method="chol")
+y <- X %*% b
+```
+
+**Ridge Regression:**
+
+```{r, eval=F}
+ridge.fit <- glmnet(X, y, alpha=0)
+plot(ridge.fit)
+
+ridge.err <- norm(y - X %*% ridge.fit$beta, "2")
+ridge.err
+
+# Cross-validation of lambda values
+ridge.cv <- cv.glmnet(X, y, alpha=0)
+plot(ridge.cv)
+```
+
+**Lasso:**
+
+```{r, eval=F}
+lasso.fit <- glmnet(X, y, alpha=1)
+plot(lasso.fit)
+
+lasso.err <- norm(y - X %*% lasso.fit$beta, "2")
+lasso.err
+
+# Cross-validation of lambda values
+lasso.cv <- cv.glmnet(X, y, alpha=1)
+plot(lasso.cv)
+```
+
+**Elastic Net:**
+
+```{r, eval=F}
+elastic.fit <- glmnet(X, y, alpha=0.5)
+plot(elastic.fit)
+
+elastic.err <- norm(y - X %*% elastic.fit$beta, "2")
+elastic.err
+
+# Cross-validation of lambda values
+elastic.cv <- cv.glmnet(X, y, alpha=0.5)
+plot(elastic.cv)
 ```
 
 
@@ -466,25 +619,183 @@ X <- rmvnorm(n, mean=mu, sigma=S, method="chol")
 ## Problem 4
 *We are calling genotype of an individual from sequencing data. Consider one
 position: there are 4 reads mapped to the allele C, the reference allele, and 2
-reads mapped to the allele T. The error rate ε is assumed to be 0.03 for all
-reads.*
+reads mapped to the allele T. The error rate $\epsilon$ is assumed to be 0.03
+for all reads.*
 
 ### a)
 *Use the individual prior defined in slide 16 and genotype likelihood based on
 the given error rate, derive the posterior probabilities for genotypes CC, CT
 and TT.*
 
+**Genotype: CC**
+
+\begin{align}
+P(CC|D) &\propto P(D|CC)P(CC) \\
+P(D|CC) &= {(1-\epsilon)}^4 \frac{\epsilon}{3}^2 \\
+        &= .97^4 .01^2 = 8.852928\textrm{e-}05 \\
+P(CC) &= 1-.001 = .999 \\
+\implies P(CC|D) &\propto 8.852928\textrm{e-}05 * .999 = 8.844075\textrm{e-}05
+\end{align}
+
+
+**Genotype: CT**
+
+\begin{align}
+P(TC|D) &\propto P(D|TC)P(TC) \\
+P(T|G=CT) &= \frac{1}{2}\big(P(T|C) + P(T|T)\big) \\
+          &= \frac{1}{2}\big(\frac{\epsilon}{3} + 1-\epsilon\big) \\
+          &= \frac{1}{2}\big(1 - \frac{2\epsilon}{3}\big) \\
+          &= \frac{1}{2} - \frac{\epsilon}{3} \\
+          &= .49 \\
+P(C|G=CT) &= \frac{1}{2}\big(P(C|C) + P(C|T)\big) = .49 \\
+P(D|CT) &= {.49}^6 = 0.01384129 \\
+P(TC) &= .001 * \frac{2}{3} = .000\bar{6} \\
+\implies P(CT|D) &\propto 0.01384129 * 0.0006666667 = 9.227527\textrm{e-}06
+\end{align}
+
+
+**Genotype: TT**
+
+\begin{align}
+P(TT|D) &\propto P(D|TT)P(TT) \\
+P(D|TT) &= {(1-\epsilon)}^2 {\frac{\epsilon}{3}}^4 \\
+        &= .97^2 .01^4 = 9.409\textrm{e-}09 \\
+P(TT) &= .001 * \frac{1}{3} = .000\bar{3} \\
+\implies P(CC|D) &\propto 9.409\textrm{e-}09 * 0.0003333333 = 3.136333\textrm{e-}12
+\end{align}
+
+Going by the posteriors, the most likely gene is the homozygote CC.
+
+
 ### b)
-*When there is also sequencing information from the individual’s family
-members, we can use a ‘family prior’ instead. Specifically, suppose we have
+*When there is also sequencing information from the individual's family
+members, we can use a 'family prior' instead. Specifically, suppose we have
 determined the genotypes of the parents as CC and CT. What should be the prior
 probabilities of the genotypes given this information? Determine the posterior
 probabilities of the child genotypes. Which genotype is the most probable now?*
 
 
+**New Priors:**
+
+\begin{align}
+P(CC|CC,CT) = .5 \\
+P(CT|CC,CT) = .5 \\
+P(TT|CC,TT) = 0
+\end{align}
+
+**Genotype: CC**
+
+\begin{align}
+P(CC|D) &\propto 8.852928\textrm{e-}05 * .5 = 4.426464\textrm{e-}05
+\end{align}
+
+**Genotype: CT**
+
+\begin{align}
+P(CT|D) &\propto 0.01384129 * .5 = 0.006920644
+\end{align}
+
+
+**Genotype: TT**
+
+\begin{align}
+P(CC|D) &\propto 9.409\textrm{e-}09 * 0 = 0
+\end{align}
+
+With the family prior, the genotype with the highest posterior is CT.
+
+
 ## Problem 5
 *Derive the EM algorithm update rule for the problem of estimating genotype
 frequencies from sequencing reads (slide 23).*
+
+I will use the notation from the Li paper because that from the slides doesn't
+make any fucking sense.
+
+The likelihood for the distribution is:
+
+\begin{align}
+L(\xi) &= \prod_{i=1}^n \sum_{g=0}^m L_i(g) \xi_g \\
+\implies \ell(\xi) &= \sum_{i=1}^n \log\big(\sum_{g=0}^m L_i(g) \xi_g\big)
+\end{align}
+
+To make the problem more tractable, consider the likelihood for a specific
+genotype $g=k$. The expression then becomes:
+
+\begin{align}
+L(\xi) &= \prod_{i=1}^n \big(L_i(g) \xi_g\big)^{\mathbb{1}\{g=g=k\}} \\
+\implies \ell(\xi) &= \sum_{i=1}^n \log \left.\big(L_i(g) \xi_{g}\big)\right|_{g=k} \\
+  &= \sum_{i=1}^n \log(\left.L_i(g)\right|_{g=k} ) + \log(\left.\xi_{g}\right|_{g=k})
+\end{align}
+
+The update step for the EM algorithm is defined as:
+
+\begin{align}
+\xi_g^{(t+1)} &= \argmax_{\xi_g} Q(\theta|\theta^{(t+1)})\textrm{, where} \\
+Q(\theta|\theta^{(t+1)}) &= \mathbb{E}_{G|D,\xi^{(t)}} \log P(D,G|\xi) \\
+  &= \mathbb{E}_{G|D,\xi^{(t)}} \sum_{i=1}^n \log(\left.L_i(g)\right|_{g=k} ) + \log(\left.\xi_{g}\right|_{g=k}) \\
+  &= \gamma_g(k) \sum_{i=1}^n \log(\left.L_i(g)\right|_{g=k} ) + \log(\left.\xi_{g}\right|_{g=k})
+\end{align}
+
+The equation is the expectation over the product of the posterior over the
+complete data where genotypes are 'known' and the log-likelihood. $D$ is the
+data; $G$ are the genotypes; $\gamma_g$ is the posterior probability given the
+'known' parameterization; and $\xi$ are the genotypes.
+
+The posterior probability is defined as:
+
+\begin{align}
+\gamma_g(k) &= \frac{P(D, \xi^{(t)}|g_i = k)P(g_i=k)}{P(D,\xi^{(t)})} \\
+  &= \frac{L_i(k)\xi_k^{(t)}}{\sum_{g=0}^m L_i(g) \xi_g^{(t)}}
+\end{align}
+
+To maximize $Q$ given the constraint that the genotype frequencies sum to $1$
+(i.e. $\sum_{g=0}^m \xi_g = 1$), use the likelihood and a Lagrange multiplier:
+
+\begin{align}
+L(\theta|\theta^{(t+1)}) &= Q(\theta|\theta^{(t+1)}) - \lambda\big(\sum_{g}^m \xi_g - 1\big) \\
+  &= \sum_{i=1}^n \gamma_g(k) \big( \log(\left.L_i(g)\right|_{g=k} ) + \log(\left.\xi_{g}\right|_{g=k})\big) - \lambda\big(\sum_{g}^m \xi_g - 1\big)
+\end{align}
+
+Take the derivatives to find the maximum:
+
+\begin{align}
+\frac{\partial L(\theta|\theta^{(t+1)})}{\partial \xi_k} &= \sum_{i=1}^n \gamma_g(k) \frac{1}{\xi_{k}} - \lambda = 0 \\
+\implies \frac{1}{\lambda} \sum_{i=1}^n \gamma_g(k) &= {\xi_k}
+\end{align}
+
+Summing across all $m$ genotypes allows and using the constraint $\sum_{g=0}^m
+\xi_g = 1$:
+
+\begin{align}
+\sum_{g=0}^m \frac{1}{\lambda} \sum_{i=1}^n \gamma_g(k) &= \sum_{g=0}^m \xi_g = 1 \\
+\implies \sum_{g=0}^m \sum_{i=1}^n \gamma_g(k) &= \lambda \\
+\implies \sum_{i=1}^n \sum_{g=0}^m \gamma_g(k) &= \lambda \\
+\implies \sum_{i=1}^n 1 &= \lambda \\
+\implies n &= \lambda
+\end{align}
+
+Therefore, the update step is:
+
+\begin{align}
+\xi_k^{(t+1)} &= \frac{1}{n} \sum_{i=1}^n \gamma_g(k) \\
+  &= \frac{1}{n} \sum_{i=1}^n \frac{L_i(k)\xi_k^{(t)}}{\sum_{g=0}^m L_i(g) \xi_g^{(t)}}
+\end{align}
+
+Using Bayes rule, this equation can be further simplified:
+
+\begin{align}
+\xi_k^{(t+1)} &= \frac{1}{n} \sum_{i=1}^n \frac{L_i(k)\xi_k^{(t)}}{\sum_{g=0}^m L_i(g) \xi_g^{(t)}} \\
+  &= \frac{1}{n} \sum_{i=1}^n \frac{P(d_i|\xi^{(t)}, g)P(g)}{\sum_{g=0}^m P(d_i|\xi^{(t)}, g)P(g)} \\
+  &= \frac{1}{n} \sum_{i=1}^n \frac{P(d_i|\xi^{(t)}, g)P(g)}{P(d_i|\xi^{(t)})} \\
+  &= \frac{1}{n} \sum_{i=1}^n \frac{P(g|d_i,\xi^{(t)})P(d_i|\xi^{(t)})}{P(d_i|\xi^{(t)})} \\
+  &= \frac{1}{n} \sum_{i=1}^n P(g|d_i,\xi^{(t)})
+\end{align}
+
+Note that $d_i$ are the reads from individual $i$, and $g$ is the genotype such
+that $g \in G$, where $G$ is the set of all possible genotypes and where $|G| =
+m$.
+
 
 ## Problem 6
 *We are performing an association study using whole-exome or genome sequencing.
@@ -503,3 +814,22 @@ sequencing procedure.
 
 ### b)
 *Describe how you would address this problem.*
+
+One can compensate for bias by using a linear model that relates the sequence
+calls from a particular sequencing platform and read depth to the known
+sequence posterior. (The posterior distribution for sequence calls is generated
+by a HMM for the sequence, multiplied over the number of reads.) Regress an
+estimate of the posterior probabilities of nucleotide calls against the known
+distribution at each locus to obtain a set of locus-specific correction
+factors, which can then be used as the coefficients to adjust likelihoods for
+unknown data.
+
+This strategy will require a regression to be performed at every locus, because
+the bias for a given sequence in the genome depends on many sequence specific
+factors, such as GC content, repeats, etc. This means that a regression model
+for a given sequence is likely unusable for a sequence from a different part of
+the genome. To generalize the linear model, one could pick out features that
+correspond to high regression coefficients (i.e. high deviation from the
+expected posterior).  This could be done manually based on known molecular
+features of DNA or the sequencing technology, or it could be done in an
+automated manner by a machine learning algorithm.
