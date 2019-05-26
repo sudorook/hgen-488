@@ -257,56 +257,6 @@ SVDfromQR <- function(X, QR, reps=100) {
 
   return(list(U=U, S=S, V=V))
 }
-
-GolubKahanBidiagonalize <- function(A, QR, reps=100) {
-  m <- nrow(A)
-  n <- ncol(A)
-
-  X <- A
-  U <- diag(m)
-  V <- diag(n)
-
-  for (k in 1:n) {
-    x <- X[k:m,k]
-    e <- rep(0, length(x))
-    e[1] <- norm(x, "2") * sign(x[1])
-    u <- x + e
-    u <- u / norm(u, "2")
-    X[k:m, k:n] <- X[k:m, k:n] - 2*u %*% (t(u) %*% X[k:m, k:n])
-
-    if (k <= n-2) {
-      x <- X[k,(k+1):n]
-      e <- rep(0, length(x))
-      e[1] <- norm(x, "2") * sign(x[1])
-      v <- x + e
-      v <- v / norm(v, "2")
-      X[k:m,(k+1):n] <- X[k:m,(k+1):n] - 2*X[k:m,(k+1):n] %*% v %*% t(v)
-    }
-  }
-
-  return(list(U=t(U),B=X,V=V))
-}
-
-SVDfromQRv2 <- function(A, QR, GKB, reps=100) {
-  m <- nrow(A)
-  n <- ncol(A)
-
-  res <- QR(A)
-  Q <- res$Q
-  R <- res$R
-
-  B <- GKB(A)
-
-   # <- diag(1, dim(L)[1]);
-  for(i in 1:reps) {
-    res <- QR(L)
-    Q <- res$Q
-    Y <- Y %*% Q
-    L <- res$R %*% Q
-  }
-
-  return(list(U=U, S=S, V=V))
-}
 ```
 
 ```{r}
