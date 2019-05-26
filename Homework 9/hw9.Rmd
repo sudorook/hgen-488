@@ -1,0 +1,103 @@
+---
+title: Homework 9
+author: Ansel George
+output:
+    pdf_document:
+        latex_engine: xelatex
+fontsize: 12pt
+mainfont: LiberationSans
+sansfont: LiberationSans
+mathfont: LiberationSans
+monofont: LiberationMono
+---
+
+# Part I: Motif Finding
+
+## Problem 1
+*In the Gibbs sampling version of motif finding, we assume each sequence has
+exactly one motif instance. Now we consider a slightly different formulation.
+Suppose we have just one long sequence that is enriched with a motif. Our
+generative model is: at each position, we sample either a TF binding site from
+the motif model with probability $\pi$, or a single base from the background
+multinomial distribution with probability $1 − \pi$.*
+
+### a)
+*Let $S$ be a sequence of length $N$, $\theta_0$ and $\theta$ be the parameters
+of the background and motif models (both are multinomial) respectively, with
+the motif length being $W$. Assume $\theta_0$ is given, derive the likelihood
+$P(S | \theta, \pi)$.*
+
+### b)
+*Derive the EM algorithm for estimation of the model parameters.*
+
+
+## Problem 2
+*A real enhancer, generally a few hundred base pairs long, often contains not
+just one TF binding site, but multiple ones belonging to different TFs. Suppose
+we are given the background nucleotide distribution parameter $\theta_0$, and
+the distribution parameters of the $K$ motifs, $\theta_1 , \dots , \theta_K$
+(all distributions are product-multinomial).*
+
+### a)
+*Describe how you would detect enhancer sequences from the genome given the
+motifs. You can assume that you've already known some enhancers containing
+these motifs. You need to only outline the ideas.*
+
+### b)
+*Suppose we suspect that there is some kind of constraint for the enhancer
+sequences: say one type of motif tends to be close to another type of motif,
+but we do not know these constraints in general. Describe a strategy of
+learning these constraints using a set of known enhancers.*
+
+
+# Part II: RNA Sequencing
+
+## Problem 3
+*We explore a different approach to estimation of isoform levels from read
+counts. Suppose we have a gene with $n$ exons, and it has $m$ isoforms, all of
+which are known. The number of reads in the $j$-th exon is $x_j$, $(1 \leq j
+\leq n)$, and the number of junction reads between exons $j$ and $k$ is
+$x_{jk}$, $(1 \leq j,k \leq n)$.  Furthermore, we know that the length of the
+$j$-th exon is $l_j$, and the length of the junction region between exons $j$
+and $k$ is $l_{jk}$. Can you come up with a mathematic model that estimates
+the expression levels of all isoforms based on the given data $X$ and $L$?*
+
+
+## Problem 4
+*We will use the R package `edgeR` to test for differential expression in a
+sample gene expression dataset.*
+
+*To install and load `edgeR`, enter the following commands in R:*
+
+```{r, eval=F}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+install.packages("BiocManager")
+BiocManager::install("edgeR")
+library(edgeR)
+edgeRUsersGuide() ## read the user’s guide
+```
+
+*To load the sample dataset, enter the following commands in R:*
+
+```{r, eval=F}
+BiocManager::install("tweeDEseqCountData")
+library(tweeDEseqCountData)
+data(pickrell)
+exprs_mtx = exprs(pickrell.eset) ## gene by sample expression matrix
+gender_lab = pData(pickrell.eset)[,"gender"] ## gender of each sample
+```
+
+*This is a dataset containing read counts for 52,580 Ensembl genes for each of
+the 69 Nigerian individuals.*
+
+### a)
+*Use the `exactTest` function of `edgeR` to find genes that are differentially
+expressed between males and females in the expression matrix. Show the top 10
+DE genes and their supporting statistics (e.g. log fold change and p-values).*
+
+### b)
+*Perform differential expression analysis by using the Wilcoxon rank-sum test
+(`wilcox.test`) instead on each gene, and compare the top 10 DE genes with
+previous `edgeR` result. Note that to do the rank-sum test, you need to
+normalize the gene expression values so that they are comparable across
+conditions.*
