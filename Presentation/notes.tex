@@ -1,17 +1,8 @@
 \documentclass{beamer}
 
 \mode<presentation>{%
-  % \usetheme{Madrid}
   \usetheme[block=fill,progressbar=frametitle]{metropolis}
   \setsansfont[BoldFont={Fira Sans SemiBold}]{Fira Sans Book}
-  % \setsansfont{Roboto}
-  % \setmainfont{Liberation Sans}
-  % \setsansfont{Liberation Sans}
-  % \setmonofont{Liberation Mono}
-  % \setmathfont{Liberation Sans}
-  % \setmainfont{Fira Sans}
-  % \setsansfont{Fira Sans}
-  % \setmonofont{Fira Mono}
 }
 
 \usepackage{appendixnumberbeamer}
@@ -34,7 +25,6 @@
   How to \textbf{cluster} data using \textbf{relevant factors} while
   \textbf{excluding irrelevant information and noise.}
   \begin{figure}
-    % \includegraphics[width=\linewidth]{figures/fig1.png}
     \includegraphics[width=\linewidth]{figures/fig1v2.png}
     \caption{Data set contains two clusters determined by two variables $X_1$
       and $X_2$ such that points around $(1,1)$ and $(-1,-1)$ naturally form
@@ -77,7 +67,10 @@
   \end{align*}
 \end{frame}
 
-% \begin{frame}{Sparsity + biclustering = \ensuremath\varheartsuit}
+\begin{frame}{Biclustering demo}
+  Few slides with a biclustering demonstration for some random sparse matrix.
+\end{frame}
+
 \begin{frame}{Sparsity + biclustering = \ding{170}}
   \begin{enumerate}
     \item Finding optimal set of biclusters is NP-Complete.
