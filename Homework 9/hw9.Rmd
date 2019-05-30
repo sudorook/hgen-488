@@ -19,7 +19,7 @@ exactly one motif instance. Now we consider a slightly different formulation.
 Suppose we have just one long sequence that is enriched with a motif. Our
 generative model is: at each position, we sample either a TF binding site from
 the motif model with probability $\pi$, or a single base from the background
-multinomial distribution with probability $1 − \pi$.*
+multinomial distribution with probability $1 - \pi$.*
 
 ### a)
 *Let $S$ be a sequence of length $N$, $\theta_0$ and $\theta$ be the parameters
