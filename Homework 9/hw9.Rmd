@@ -11,6 +11,13 @@ mathfont: LiberationSans
 monofont: LiberationMono
 ---
 
+```{r, message=F}
+library(edgeR)
+library(tweeDEseqCountData)
+
+set.seed(10)
+```
+
 # Part I: Motif Finding
 
 ## Problem 1
@@ -22,13 +29,97 @@ the motif model with probability $\pi$, or a single base from the background
 multinomial distribution with probability $1 - \pi$.*
 
 ### a)
-*Let $S$ be a sequence of length $N$, $\theta_0$ and $\theta$ be the parameters
-of the background and motif models (both are multinomial) respectively, with
-the motif length being $W$. Assume $\theta_0$ is given, derive the likelihood
-$P(S | \theta, \pi)$.*
+*Let $S$ be a sequence of length $N$, $\theta_0$, and $\theta$ be the
+parameters of the background and motif models (both are multinomial)
+respectively, with the motif length being $W$. Assume $\theta_0$ is given,
+derive the likelihood $P(S | \theta, \pi)$.*
+
+Model the sequence as a HMM, with transition probabilities
+$P(\textrm{background} \rightarrow \textrm{motif}) = \pi)$, $P(\textrm{Wth
+element of motif} \rightarrow \textrm{background}) = 1$, and $P(\textrm{inside
+motif} \rightarrow \textrm{background}) =0$; and emission probabilities set in
+$\theta_0$ and $\theta$.
+
+Let $Z_i$ denote the hidden state of an element in the sequence, namely whether
+it is part of the background or a motif, and $Z$ be the full state sequence.
+
+The likelihood $P(S|\theta, \pi)$ must be marginalized over the set of all
+possible hidden states $Z$:
+
+\begin{align}
+P(S|\theta, \pi) &= \sum_Z P(S, Z | \theta, \pi) \\
+  &= \sum_Z P(S | Z, \theta, \pi) P( Z | \theta, \pi)
+\end{align}
+
+To compute the likelihood, use the forward (or backward) algorithm and assume a
+uniform prior.
+
+\begin{align}
+P(S|\theta, \pi) &= \sum_Z P(S | Z, \theta, \pi) P( Z | \theta, \pi) \\
+  &= \pi_0 \sum_Z P(S_0 | Z_0, \theta, \pi) P(Z_1 | Z_0, \theta, \pi) P(S_1 | Z_1, \theta, \pi) \dots P(Z_n | Z_{n-1}, \theta, \pi) P(S_n | Z_n, \theta, \pi) \\
+  &= \sum_{Z_n} P(S_n | Z_n) \sum_{Z_{n-1}} P(Z_n | Z_{n-1}) P(S_{n-1} | Z_{n-1}) \dots \sum_{Z_{1}} P(Z_2 | Z_{1}) P(S_{1} | Z_{1}) \sum_{Z_{0}} P(Z_1 | Z_{0}) P(S_{0} | Z_{0})
+\end{align}
+
+
+Define:
+
+\begin{align}
+\alpha_{0}(i) &= \pi_0 P(S_0 | Z_0 = i) \\
+\alpha_{t+1}(i) &= \sum_j (\alpha_t(i)P(Z_t = i | Z_{t-1} = j)) P(S_{t+1}|Z_{t+1} = i) \\
+\implies P(S | \theta, \pi) &= \sum_i^N \alpha_n(i)
+\end{align}
+
+The transition probability of moving from background to motif is $\pi$, and
+when the sequence hidden state is in the middle of a motif, the summation over
+transition probabilities is simplified because only one possible transition
+(motif $\rightarrow$ motif) is possible.
+
 
 ### b)
 *Derive the EM algorithm for estimation of the model parameters.*
+
+To estimate the parameters of a HMM, use the Baum-Welch algorithm. This method
+will require the background parameter $\beta$ from the backward algorithm (not
+shown/derived here).
+
+To find the transition probability $\pi$, consider the probability of there
+being a transition at site $i$ in the sequence $S$:
+
+\begin{align}
+P(Z_{i+1} = motif, Z_{i} = bg | \theta) &= \frac{\alpha_t(i)\pi\beta_{t+1}(j) P(S_{t+1} | Z_{t+1} = j)}{P(S | \theta)} \\
+  &= \frac{\alpha_t(i)\pi\beta_{t+1}(j) P(S_{t+1} | Z_{t+1} = j)}{\sum_i \sum_j \alpha_t(i)\pi\beta_{t+1}(j) P(S_{t+1} | Z_{t+1} = j)} \\
+  &= \xi_t(i, j)\\
+\gamma_t(i) &= P(Z_t = i | S, \theta)
+\end{align}
+
+The ratio is the number of ways of transitioning from background to motif
+divided by the number of ways to for the sequence to be in the background
+hidden state.
+
+
+The MLE estimate for $\pi$ (via the log-likelihood of the expectation over
+posterior) is as follows. For simplicity, terms that don't depend on $\pi$ are
+dropped because they will disappear after differentiation.
+
+\begin{align}
+\frac{\partial}{\partial \pi} \big( \sum_N \log(\pi) P(Z, S | \pi) - \lambda (\sum_A \pi - 1 )  \big)= 0 \\
+\implies \sum_N \frac{P(Z_{t} = i, Z_{t+1} = j, S| \theta )}{\pi} - \lambda = 0
+\end{align}
+
+Using the constraint that $\sum_A \pi_A = 1$:
+
+\begin{align}
+\lambda = \sum_M \sum_N P(Z_{t} = i, Z_{t+1} = j, S| \theta )
+\end{align}
+
+where $M$ is the set of hidden states, and $N$ is index over the sequence.
+
+\begin{align}
+\implies \pi^{(t)} &= \frac{\sum_N P(Z_{t} = i, Z_{t+1} = j, S| \theta )}{\sum_M \sum_N P(Z_{t} = i, Z_{t+1} = j, S| \theta )}\\
+  &= \frac{\sum_N P(Z_{t} = i, Z_{t+1} = j, S| \theta )}{\sum_N P(Z_{t} = i, S| \theta )} \\
+  &= \frac{\sum_N P(Z_{t} = i, Z_{t+1} = j | S, \theta )}{\sum_N P(Z_{t} = i | S, \theta )} \\
+  &= \frac{\sum_N \xi_t(i,j)}{\sum_N \gamma_t(i)}
+\end{align}
 
 
 ## Problem 2
@@ -43,11 +134,35 @@ the distribution parameters of the $K$ motifs, $\theta_1 , \dots , \theta_K$
 motifs. You can assume that you've already known some enhancers containing
 these motifs. You need to only outline the ideas.*
 
+The likelihood of a particular sequence depends whether a particular residue is
+a member of a particular motif or the background. The identity is a latent
+variable. One can use EM by computing a posterior from marginalizing over all
+possible motif distributions for a particular candidate motif.
+
+
 ### b)
 *Suppose we suspect that there is some kind of constraint for the enhancer
 sequences: say one type of motif tends to be close to another type of motif,
 but we do not know these constraints in general. Describe a strategy of
 learning these constraints using a set of known enhancers.*
+
+Use a hidden Markov model to find the transition probabilities of moving from
+one hidden state (type of motif) to another. This method will require EM
+(Baum-Welch) to estimate the parameters for the transition probabilities.
+
+This approach, though, is inadequate in the case that the likelihood of moving
+from one motif to the next is distributed such that it depends on how many
+steps are between one motif and another, thereby violating the HMM requirement
+that the current state only depend on the previous state.
+
+The parameters to estimate are the motif identities at each locus and also the
+distributions for pair-wise transition probabilities. In this case, one
+possible albeit computationally expensive solution may be to use a
+Metropolis-Hastings search (or Gibbs sampling, if there is a parameterized
+distribution), where each parameter is specified at the outset and modified.
+Modifications are kept with probability based on the likelihood ratio of the
+data given modified versus original/initial parameters. The algorithm would
+return set of parameters corresponding to the maximum of the likelihood.
 
 
 # Part II: RNA Sequencing
@@ -57,10 +172,93 @@ learning these constraints using a set of known enhancers.*
 counts. Suppose we have a gene with $n$ exons, and it has $m$ isoforms, all of
 which are known. The number of reads in the $j$-th exon is $x_j$, $(1 \leq j
 \leq n)$, and the number of junction reads between exons $j$ and $k$ is
-$x_{jk}$, $(1 \leq j,k \leq n)$.  Furthermore, we know that the length of the
+$x_{jk}$, $(1 \leq j,k \leq n)$. Furthermore, we know that the length of the
 $j$-th exon is $l_j$, and the length of the junction region between exons $j$
 and $k$ is $l_{jk}$. Can you come up with a mathematic model that estimates
 the expression levels of all isoforms based on the given data $X$ and $L$?*
+
+Consider the following model for reads and expression level for a single exon.
+The number of reads corresponding to it is Poisson-distributed:
+
+\begin{align*}
+x \sim \textrm{Pois}(l \lambda)
+\end{align*}
+
+where $x$ is the number of reads, $l$ the length of the exon, and $\lambda$
+the expression level for the exon.
+
+When there are multiple exons and multiple isoforms, the read data will be a
+combination of:
+
+ * Reads for a particular exon that can correspond to multiple exons, each with
+   different expression levels ($\lambda_i$s).
+ * Reads for a particular isoform that map to a set of exons, each with the
+   same expression level parameters ($\lambda_i$).
+
+Because the model treats junctions equivalently to exons, the $x_i$ vs $x_{ij}$
+notation is dropped in favor of use of a single subscript $x_i$ for sake of
+simplicity of notation.
+
+If all $m$ isoforms are already known, then there are $m$ different $\lambda$
+parameters to find ($\lambda_1 \dots \lambda_m$).
+
+For a particular exon/junction $j$, its reads are distributed
+is $\sum_{k \in m_j} l_k
+\lambda_k + \sum_{jk \in m_{jk}} l_{jk} \lambda_k$.
+
+\begin{align*}
+X_i \sim \textrm{Pois}(l_i \sum_{k \in I(i)} \lambda_k)
+\end{align*}
+
+where $I(i)$ is the set of all isoforms that include junction/exon $i$.
+
+$X_i$ can alternately be written as a sum of variables $Y_j$, where $X_i =
+\sum_{j \in I(i)} Y_j$ and $Y_j$ is the number of reads in exon/junction $i$
+that originate from isoform $j$. Note that $Y_j \sim \textrm{Pois}(l_i
+\lambda_j)$.
+
+The set of all expression levels $\Lambda$ can be estimated using EM.
+
+The joint likelihood of all exons is:
+
+\begin{align}
+L(\Lambda) &= \prod^n_i \prod^{I(i)}_j e^{-l_j \lambda_j} \frac{l_j \lambda_j^{Y_{ij}}}{Y_{ij}!}
+\end{align}
+
+The corresponding log-likelihood is then:
+
+\begin{align}
+\ell(\Lambda) &= \sum^n_i \sum^{I(i)}_j {Y_{ij}} \log{l_j \lambda_j} - l_j \lambda_j - \log{Y_{ij}!}
+\end{align}
+
+To find the update for $\lambda_j$, find:
+
+\begin{align}
+\frac{\partial}{\partial \lambda_j} \mathbb{E} \big[\ell(\Lambda) | X \big] &= \frac{\partial}{\partial \lambda_n} \mathbb{E} \Big[ \sum^n_i \sum^{I(i)}_j {Y_{ij}} \log{l_j \lambda_j} - l_j \lambda_j - \log{(Y_{ij}!)} | X \Big] \\
+  &= \sum^n_i \mathbb{E}\big[{Y_{ij}|X_i}\big] \frac{1}{\lambda_j} - l_j \\
+  &=  \frac{1}{\lambda_j} \sum^n_i \big( \mathbb{E}[{Y_{ij}|X_i}]\big) - L = 0
+\end{align}
+
+This equation can be simplified because $Y$s are Poisson distributed and their
+conditional distributions are binomial-distributed:
+
+\begin{align}
+Y_{ij} | X_i &\sim \textrm{Bin}\Big(X_i, \frac{\lambda_j}{\sum_j^{I(i)} \lambda_j}\Big) \\
+  &=\textrm{Bin}\Big(X_i, \frac{\lambda_j}{\Lambda_{X_i}}\Big)
+\end{align}
+
+The expectation of this distribution is:
+
+\begin{align}
+\mathbb{E} \Big\{ \textrm{Bin}\Big(X_i, \frac{\lambda_j}{\Lambda_{X_i}}\Big) \Big\} &= X_i \frac{\lambda_j}{\Lambda_{X_i}}
+\end{align}
+
+Substituting back yields the following EM iteration:
+
+\begin{align}
+\frac{1}{\lambda_j} \sum^n_i \big( \mathbb{E}[{Y_{ij}|X_i}]\big) - L &= \frac{1}{\lambda_j} \sum^n_i \big(X_i \frac{\lambda_j}{\Lambda_{X_i}}\big) - L = 0\\
+\implies \lambda_j^{(t+1)} &= \frac{\lambda_j^{(t)}}{L}\sum_i^n \big(\frac{X_i}{\Lambda_{X_i}^{(t)}}\big)
+\end{align}
 
 
 ## Problem 4
@@ -95,9 +293,66 @@ the 69 Nigerian individuals.*
 expressed between males and females in the expression matrix. Show the top 10
 DE genes and their supporting statistics (e.g. log fold change and p-values).*
 
+```{r}
+data(pickrell)
+exprs_mtx = exprs(pickrell.eset) ## gene by sample expression matrix
+gender_lab = pData(pickrell.eset)[,"gender"] ## gender of each sample
+```
+
+```{r}
+bcv <- 0.4
+y <- DGEList(counts=exprs_mtx, group=gender_lab)
+et <- exactTest(y, dispersion=bcv^2)
+```
+
+```{r}
+head(et$table[order(et$table$PValue),], 10)
+```
+
+
 ### b)
 *Perform differential expression analysis by using the Wilcoxon rank-sum test
 (`wilcox.test`) instead on each gene, and compare the top 10 DE genes with
 previous `edgeR` result. Note that to do the rank-sum test, you need to
 normalize the gene expression values so that they are comparable across
 conditions.*
+
+I disabled execution for this block because of an odd out-of-memory error it
+causes in LaTeX (and not R).
+
+```{r, eval=F}
+normalized_exprs_mtx <- t(apply(exprs_mtx, 1,
+                                f <- function(x) {
+                                  if (sd(x) != 0) {
+                                    return((x - mean(x)) / sd(x))
+                                  } else {
+                                    return(0*x)
+                                  }
+                                }))
+
+wt <- apply(normalized_exprs_mtx, 1,
+            f <- function(y) {
+              wilcox.test(y[gender_lab == 'male'],
+                          y[gender_lab == 'female'])$p.value
+            })
+```
+
+```{r, eval=F}
+head(as.matrix(sort(wt), ncol=1), 10)
+```
+
+```
+ENSG00000198692 4.117218e-15
+ENSG00000099749 7.106927e-15
+ENSG00000129824 8.256174e-14
+ENSG00000154620 2.894593e-13
+ENSG00000157828 3.617886e-13
+ENSG00000183878 3.428989e-10
+ENSG00000006757 2.969155e-09
+ENSG00000130021 1.316812e-04
+ENSG00000196407 1.527494e-04
+ENSG00000187479 1.972694e-04
+```
+
+The intersection of this gene set contains ENSG00000129824, ENSG00000099749,
+ENSG00000154620, ENSG00000157828.
