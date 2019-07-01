@@ -308,7 +308,6 @@ main(int argv, char* argc[])
     }
   }
 
-  fprintf(f, "hi\n");
   fclose(f);
 
   /* Cleanup and free memory. */
